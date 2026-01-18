@@ -200,6 +200,11 @@
       background-color: var(--button-hover);
     }
 
+    /* Hide the default Buy Me a Coffee widget button */
+    #bmc-wbtn {
+      display: none !important;
+    }
+
     #screenshotBtn:hover {
       transform: scale(1.1);
       background-color: var(--button-hover);
@@ -732,11 +737,11 @@
   <input type="file" id="multiCsvFiles" accept=".csv" multiple onchange="handleMultiFiles()" />
   <label id="multi_file_button" for="multiCsvFiles">Select CSV file(s)</label>
   <button id="screenshotBtn" title="Take Screenshot">📸</button>
-  <a id="tipBtn" href="https://buymeacoffee.com/flightplayback" target="_blank" title="Leave a tip">
+  <button id="tipBtn" title="Support me on Buy me a coffee!">
     <span class="btn-text">Leave a tip</span>
     <img src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg" alt="Buy Me a Coffee"
       style="width: 24px; height: 24px;">
-  </a>
+  </button>
   <div id="map"></div>
   <div id="flightSelectorContainer" style="display: none;">
     <div id="flightSelector" class="flight-selector"></div>
@@ -767,7 +772,7 @@
           <div class="data-group">
             <div class="data-item speed-control">
               <label>Speed</label>
-              <input type="range" id="speedControl" min="0" max="8" value="0" step="1">
+              <input type="range" id="speedControl" min="0" max="8" value="0" step="1" disabled>
               <span class="speed-indicator" id="speedIndicator">1x</span>
             </div>
 
@@ -1057,12 +1062,18 @@
 
     function playFlight() {
       if (!isPlaying && flightPathPoints.length > 0) {
+        // If we're at the end, start from the beginning
+        if (parseInt(progressBar.value) >= flightPathPoints.length - 1) {
+          progressBar.value = 0;
+        }
+
         isPlaying = true;
-        let currentIndex = parseInt(progressBar.value);
 
         playbackInterval = setInterval(() => {
+          let currentIndex = parseInt(progressBar.value);
           if (currentIndex >= flightPathPoints.length - 1) {
             pauseFlight();
+            updatePlayPauseButton();
             return;
           }
           currentIndex++;
@@ -1345,6 +1356,7 @@
       document.getElementById('multi_file_button').textContent = `Playback of flight ${flight.name}`;
       progressBar.max = flightPathPoints.length - 1;
       progressBar.disabled = false;
+      speedControl.disabled = false;
       progressBar.value = 0;
       updateDisplay(0);
       updateAircraftPosition(0);
@@ -1706,8 +1718,22 @@
           tipBtn.classList.add('shrunk');
         }
       }, 3000);
+
+      // Link custom button to official BMC widget
+      const tipBtn = document.getElementById('tipBtn');
+      if (tipBtn) {
+        tipBtn.addEventListener('click', () => {
+          const bmcWidgetBtn = document.getElementById('bmc-wbtn');
+          if (bmcWidgetBtn) {
+            bmcWidgetBtn.click();
+          }
+        });
+      }
     });
   </script>
+  <script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js"
+    data-id="flightplayback" data-description="Support me on Buy me a coffee!" data-message="" data-color="#40DCA5"
+    data-position="Right" data-x_margin="18" data-y_margin="18"></script>
 </body>
 
 </html>
