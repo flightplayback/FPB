@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlightPlayback</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      /* Light Theme (Default) */
+      --bg-color: #f0f0f0;
+      --glass-bg: rgba(255, 255, 255, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.4);
+      --text-main: #1a1a1a;
+      --text-header: #444444;
+      --text-secondary: #666666;
+      --button-bg: rgba(0, 0, 0, 0.05);
+      --button-border: rgba(0, 0, 0, 0.1);
+      --button-hover: rgba(0, 0, 0, 0.1);
+      --flight-hover: rgba(0, 0, 0, 0.05);
+      --flight-active-bg: rgba(0, 122, 255, 0.15);
+      --flight-active-text: #007aff;
+      --shadow-color: rgba(0, 0, 0, 0.05);
+      --tooltip-bg: rgba(255, 255, 255, 0.85);
+      --accent-color: #007aff;
+      --chart-axis-color: #555555;
+      --chart-grid-color: rgba(0, 0, 0, 0.1);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        /* Dark Theme */
+        --bg-color: #000000;
+        --glass-bg: rgba(27, 27, 27, 0.65);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --text-main: #ffffff;
+        --text-header: #cccccc;
+        --text-secondary: #aaaaaa;
+        --button-bg: rgba(255, 255, 255, 0.1);
+        --button-border: rgba(255, 255, 255, 0.2);
+        --button-hover: rgba(255, 255, 255, 0.2);
+        --flight-hover: rgba(255, 255, 255, 0.1);
+        --flight-active-bg: rgba(10, 132, 255, 0.3);
+        --flight-active-text: #0a84ff;
+        --shadow-color: rgba(0, 0, 0, 0.5);
+        --tooltip-bg: rgba(40, 40, 40, 0.85);
+        --accent-color: #0a84ff;
+        --chart-axis-color: #cccccc;
+        --chart-grid-color: rgba(255, 255, 255, 0.1);
+      }
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      overflow: hidden;
+      color: var(--text-main);
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* Floating Buttons */
+    #multi_file_button {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--text-main);
+      font-size: 1rem;
+      z-index: 1001;
+      background-color: var(--glass-bg);
+      padding: 8px 16px;
+      border-radius: 20px;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px var(--shadow-color);
+      border: 1px solid var(--glass-border);
+    }
+
+    #multiCsvFiles {
+      display: none;
+    }
+
+    #toggleMarkersBtn {
+      position: absolute;
+      top: 80px;
+      left: 10px;
+      z-index: 1001;
+      padding: 8px 16px;
+      background-color: var(--glass-bg);
+      color: var(--text-main);
+      border-radius: 20px;
+      border: 1px solid var(--glass-border);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 6px var(--shadow-color);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      transition: all 0.3s ease;
+    }
+
+    #screenshotBtn {
+      position: absolute;
+      top: 79px;
+      left: 10px;
+      z-index: 1001;
+      padding: 10px;
+      background-color: var(--glass-bg);
+      color: var(--text-main);
+      border-radius: 50%;
+      border: 1px solid var(--glass-border);
+      cursor: pointer;
+      font-size: 1.2rem;
+      box-shadow: 0 4px 6px var(--shadow-color);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+    }
+
+    #screenshotBtn:hover {
+      transform: scale(1.1);
+      background-color: var(--button-hover);
+    }
+
+    #toggleMarkersBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 8px var(--shadow-color);
+      background-color: var(--button-hover);
+    }
+
+    #map {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100vh;
+      width: 100vw;
+      z-index: 0;
+      background-color: #262626;
+    }
+
+    /* Info Box Container */
+    .infosbox {
+      position: absolute;
+      z-index: 1001;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 1200px;
+      background-color: var(--glass-bg);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      padding: 10px;
+      border-radius: 30px;
+      color: var(--text-main);
+      transition: top 0.3s ease;
+      box-shadow: 0 8px 32px var(--shadow-color);
+      border: 1px solid var(--glass-border);
+    }
+
+    .infosbox.expanded {
+      top: auto;
+      bottom: 20px;
+    }
+
+    .infosbox.collapsed {
+      top: auto;
+      bottom: 20px;
+    }
+
+    .info-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .info-header {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 5px;
+      margin-bottom: 2px;
+      color: var(--text-header);
+    }
+
+    .info-body {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .control-group.primary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 2;
+      min-width: 280px;
+    }
+
+    .playback-controls button {
+      background-color: var(--button-bg);
+      border: 1px solid var(--button-border);
+      color: var(--text-main);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+
+    .playback-controls button:hover {
+      background: var(--button-hover);
+    }
+
+    .progress-container {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+      accent-color: var(--accent-color);
+    }
+
+    .data-group {
+      display: flex;
+      gap: 15px;
+      flex: 3;
+      justify-content: space-around;
+      flex-wrap: wrap;
+    }
+
+    .data-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      min-width: 60px;
+    }
+
+    .data-item label {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .data-item .value {
+      font-size: 1rem;
+      font-weight: 600;
+      white-space: nowrap;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .data-item .unit {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-left: 1px;
+    }
+
+    /* Fix degree symbol alignment */
+    .data-item .unit.degree {
+      position: relative;
+      top: -4px;
+      font-size: 0.6rem;
+    }
+
+    .speed-control {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      min-width: 90px;
+    }
+
+    .speed-control input {
+      width: 100%;
+    }
+
+    .aircraft-icon {
+      background-color: transparent;
+      border: none;
+      transform-origin: center;
+      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.8));
+      /* Stronger shadow for visibility */
+    }
+
+    .aircraft-icon svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    #chart-container {
+      height: 240px;
+      background-color: transparent;
+      overflow: hidden;
+      margin-top: 5px;
+      transition: height 0.3s ease, opacity 0.3s ease;
+    }
+
+    #chart-container.collapsed {
+      height: 0;
+      opacity: 0;
+      margin-top: 0;
+    }
+
+    canvas {
+      height: 240px;
+    }
+
+    /* Flight Selector Container */
+    #flightSelectorContainer {
+      position: absolute;
+      top: 130px;
+      left: 0;
+      z-index: 1001;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: flex-start;
+    }
+
+    #flightSelectorContainer.collapsed {
+      transform: translateX(calc(-100% + 22px));
+    }
+
+    .flight-selector {
+      background-color: var(--glass-bg);
+      padding: 10px;
+      border-radius: 16px;
+      color: var(--text-main);
+      max-height: 50vh;
+      overflow-y: auto;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      box-shadow: 0 4px 10px var(--shadow-color);
+      border: 1px solid var(--glass-border);
+      margin-left: 10px;
+    }
+
+    #flightSelectorToggle {
+      background-color: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-left: none;
+      color: var(--text-main);
+      padding: 12px 6px;
+      border-radius: 0 12px 12px 0;
+      cursor: pointer;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      box-shadow: 2px 0 8px var(--shadow-color);
+      margin-top: auto;
+      margin-bottom: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    #flightSelectorToggle:hover {
+      background: var(--button-hover);
+    }
+
+    #flightSelectorToggle span {
+      transition: transform 0.3s ease;
+      display: inline-block;
+      font-size: 12px;
+    }
+
+    #flightSelectorContainer.collapsed #flightSelectorToggle span {
+      transform: rotate(180deg);
+    }
+
+    .flight-item {
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.2s;
+      white-space: nowrap;
+      font-size: 0.9rem;
+      margin-bottom: 2px;
+    }
+
+    .flight-item:hover {
+      background-color: var(--flight-hover);
+    }
+
+    .flight-item.active {
+      background-color: var(--flight-active-bg);
+      color: var(--flight-active-text);
+      font-weight: 500;
+    }
+
+    /* Toggle Graph Button */
+    #toggleGraphBtn {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: -18px;
+      background: var(--glass-bg);
+      color: var(--text-main);
+      border: 1px solid var(--glass-border);
+      border-bottom: none;
+      border-radius: 12px 12px 0 0;
+      padding: 1px 15px;
+      cursor: pointer;
+      font-size: 12px;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      box-shadow: 0 -2px 10px var(--shadow-color);
+      display: none;
+    }
+
+    .tooltip-content {
+      font-size: 13px;
+      color: var(--text-main);
+      border-radius: 12px;
+      padding: 8px 12px;
+      background: var(--tooltip-bg);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 12px var(--shadow-color);
+      border: 1px solid var(--glass-border);
+    }
+
+    .tooltip-content strong {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    /* RESPONSIVE MEDIA QUERIES */
+    @media (max-width: 1024px) {
+      .infosbox {
+        width: 96%;
+        padding: 8px;
+      }
+
+      .data-group {
+        gap: 10px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      #multi_file_button {
+        font-size: 0.85rem;
+        padding: 6px 12px;
+      }
+
+      #toggleMarkersBtn {
+        padding: 6px 14px;
+        margin-top: 10px;
+      }
+
+      .flight-selector {
+        /* Position above info box on mobile */
+        left: 10px;
+        max-width: 180px;
+      }
+
+      .infosbox {
+        width: 96%;
+        bottom: 15px;
+        padding: 10px 10px;
+      }
+
+      .info-header {
+        font-size: 0.8rem;
+        gap: 10px;
+        justify-content: space-around;
+      }
+
+      .control-group.primary {
+        min-width: 0;
+        width: 100%;
+      }
+
+      .data-group {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .data-item .value {
+        font-size: 0.9rem;
+      }
+
+      .data-item label {
+        font-size: 0.6rem;
+      }
+
+      .data-item.speed-control {
+        grid-column: span 3;
+        flex-direction: row;
+        justify-content: center;
+        width: 100%;
+      }
+
+      .speed-control input {
+        width: 60%;
+      }
+
+      #chart-container {
+        height: 200px;
+      }
+    }
+  </style>
+
+  <style>
+    /* Mobile Portrait Specific Refinements -> Now applied to all screens <= 939px */
+    @media (max-width: 939px) {
+      .infosbox {
+        bottom: 25px;
+        padding: 10px 8px;
+        width: 95%;
+      }
+
+      .info-header {
+        display: flex;
+        justify-content: space-between;
+        padding: 0 5px 8px 5px;
+        font-size: 0.75rem;
+        border-bottom: 1px solid var(--glass-border);
+        margin-bottom: 10px;
+      }
+
+      /* FLEX CONTAINER FOR ROW 2 & 3 */
+      .info-body {
+        display: flex;
+        flex-wrap: wrap;
+        /* Allow wrapping */
+        align-items: center;
+        justify-content: space-between;
+        gap: 0;
+      }
+
+      /* UNWRAP DATA GROUP to allow mixing children with control-group */
+      .data-group {
+        display: contents;
+      }
+
+      /* --- ROW 2: Playback Controls + Speed --- */
+
+      /* 2A: Play/Progress (Left) */
+      .control-group.primary {
+        order: 1;
+        flex: 1 1 55%;
+        /* Take approx 55% width */
+        min-width: 0;
+        /* Allow shrinking */
+        margin-right: 5px;
+        margin-bottom: 12px;
+        /* Push Row 3 down */
+      }
+
+      .progress-container {
+        flex-grow: 1;
+        margin: 0 5px;
+      }
+
+      /* 2B: Speed Control (Right) */
+      .data-item.speed-control {
+        order: 2;
+        flex: 1 1 35%;
+        /* Take remaining width */
+        min-width: 0;
+        display: flex;
+        flex-direction: row;
+        /* Force row layout */
+        align-items: center;
+        justify-content: flex-end;
+        grid-column: auto;
+        /* Reset grid if present */
+        margin-bottom: 12px;
+        /* Push Row 3 down */
+        gap: 4px;
+        width: auto !important;
+        /* Override explicit widths */
+      }
+
+      .speed-control label {
+        display: block !important;
+        /* Make Visible */
+        font-size: 0.6rem;
+        margin: 0;
+        color: var(--text-secondary);
+      }
+
+      .speed-control input {
+        width: 70px !important;
+        margin: 0 2px;
+      }
+
+      .speed-indicator {
+        font-size: 0.8rem;
+        min-width: 20px;
+        text-align: right;
+        margin-right: 9px;
+      }
+
+      /* --- ROW 3: Data Metrics (Alt, GS, Track, Time) --- */
+
+      .data-item:not(.speed-control) {
+        order: 3;
+        flex: 1 1 22%;
+        /* 4 items ~ 25% each */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        min-width: 0;
+      }
+
+      .data-item:not(.speed-control) label {
+        font-size: 0.55rem;
+        white-space: nowrap;
+        margin-bottom: 2px;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .data-item:not(.speed-control) .value {
+        font-size: 0.85rem;
+      }
+
+      .data-item .unit {
+        font-size: 0.6rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <input type="file" id="multiCsvFiles" accept=".csv" multiple onchange="handleMultiFiles()" />
+  <label id="multi_file_button" for="multiCsvFiles">Select CSV file(s)</label>
+  <button id="screenshotBtn" title="Take Screenshot">📸</button>
+  <div id="map"></div>
+  <div id="flightSelectorContainer" style="display: none;">
+    <div id="flightSelector" class="flight-selector"></div>
+    <button id="flightSelectorToggle" title="Toggle Flight List">
+      <span>◀</span>
+    </button>
+  </div>
+  <!-- <button id="toggleMarkersBtn">VFR</button> -->
+  <div class="infosbox collapsed">
+    <button id="toggleGraphBtn">▲</button>
+    <div class="info">
+      <div class="info-grid">
+        <div class="info-header">
+          <div>LOCAL <span id="heure">--/--/---- --:--:--</span></div>
+          <div>UTC <span id="UTCTime">--/--/---- --:--:--</span></div>
+        </div>
+
+        <div class="info-body">
+          <div class="control-group primary">
+            <div class="playback-controls">
+              <button id="playPauseBtn">▶</button>
+            </div>
+            <div class="progress-container">
+              <input type="range" id="progressBar" value="0" min="0" step="1" disabled>
+            </div>
+          </div>
+
+          <div class="data-group">
+            <div class="data-item speed-control">
+              <label>Speed</label>
+              <input type="range" id="speedControl" min="0" max="8" value="0" step="1">
+              <span class="speed-indicator" id="speedIndicator">1x</span>
+            </div>
+
+            <div class="data-item">
+              <label>Baro Altitude</label>
+              <div class="value"><span id="altitude">-----</span><span class="unit">ft</span></div>
+            </div>
+
+            <div class="data-item">
+              <label>Ground Speed</label>
+              <div class="value"><span id="vitesse">----</span><span class="unit">kts</span></div>
+            </div>
+
+            <div class="data-item">
+              <label>Track</label>
+              <div class="value"><span id="direction">---</span><span class="unit degree">°</span></div>
+            </div>
+
+            <div class="data-item">
+              <label>Actual Flt Time</label>
+              <div class="value"><span id="flightTime">--:--:--</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="chart-container" class="collapsed">
+      <canvas id="flightChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    let aircraftMarker = null;
+    let flightPath = null;
+    let flightPathPoints = [];
+    let playbackInterval = null;
+    let isPlaying = false;
+    let playbackSpeed = 200;
+    let chartInstance = null;
+    let currentTooltip = null;
+    let flightName = "";
+    let altitudeSegments = [];
+    let allFlights = [];
+    let currentFlightIndex = 0;
+    let currentFlightData = null;
+
+    function calculateFlightTime(data) {
+      if (!data || data.length === 0) return "00:00:00";
+
+      let firstAirborneTimestamp = null;
+      for (let i = 0; i < data.length; i++) {
+        if (parseFloat(data[i].Altitude) > 0) {
+          firstAirborneTimestamp = parseInt(data[i].Timestamp);
+          break;
+        }
+      }
+
+      let lastAirborneTimestamp = null;
+      for (let i = data.length - 1; i >= 0; i--) {
+        if (parseFloat(data[i].Altitude) > 0) {
+          lastAirborneTimestamp = parseInt(data[i].Timestamp);
+          break;
+        }
+      }
+
+      if (firstAirborneTimestamp && lastAirborneTimestamp) {
+        const durationSeconds = lastAirborneTimestamp - firstAirborneTimestamp;
+        const hours = Math.floor(durationSeconds / 3600);
+        const minutes = Math.floor((durationSeconds % 3600) / 60);
+        const seconds = Math.floor(durationSeconds % 60);
+
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }
+
+      return "00:00:00";
+    }
+
+    function createAircraftIcon(rotation = 0) {
+      return L.divIcon({
+        className: 'aircraft-icon',
+        html: `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="-23.0965 -12.669 72.53 48.12" width="32" height="32" style="transform: rotate(${rotation}deg); transform-origin: center;">
+	          <path d="M 16.793 12.613 H 32.585 l 15.491 -1.694 C 49.762 9.725 49.856 4.163 48.479 3.318 L 32.109 1.648 l -10.228 0 l -4.852 -1.868 L 16.139 -10.215 L 20.714 -10.552 C 20.971 -10.809 20.886 -11.009 20.714 -11.151 L 13.982 -11.067 L 13.276 -12.669 L 12.519 -11.032 L 5.731 -11.214 C 5.524 -11.108 5.56 -10.745 5.748 -10.598 L 10.257 -10.265 l -0.809 9.966 l -4.372 1.874 L -5.835 1.648 L -21.841 3.135 C -23.646 3.254 -23.46 10.775 -21.571 10.893 L -5.854 12.528 L 9.609 12.613 L 11.801 29.78 L 0.57 29.847 C -1.858 30.337 -0.087 35.092 0.879 35.454 l 24.282 0 C 27.535 34.283 27.704 29.561 25.157 29.746 L 14.652 29.78 Z" fill="black" stroke="black" stroke-width="0.8"/>
+            <path d="M 16.793 12.613 H 32.585 l 15.491 -1.694 C 49.762 9.725 49.856 4.163 48.479 3.318 L 32.109 1.648 l -10.228 0 l -4.852 -1.868 L 16.139 -10.215 L 20.714 -10.552 C 20.971 -10.809 20.886 -11.009 20.714 -11.151 L 13.982 -11.067 L 13.276 -12.669 L 12.519 -11.032 L 5.731 -11.214 C 5.524 -11.108 5.56 -10.745 5.748 -10.598 L 10.257 -10.265 l -0.809 9.966 l -4.372 1.874 L -5.835 1.648 L -21.841 3.135 C -23.646 3.254 -23.46 10.775 -21.571 10.893 L -5.854 12.528 L 9.609 12.613 L 11.801 29.78 L 0.57 29.847 C -1.858 30.337 -0.087 35.092 0.879 35.454 l 24.282 0 C 27.535 34.283 27.704 29.561 25.157 29.746 L 14.652 29.78 Z" fill="#fed700"/>
+          </svg>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -16]
+      });
+    }
+
+    const altitudeColorMap = [
+      { alt: 42651, color: 'rgb(255,0,0)' },
+      { alt: 41010, color: 'rgb(255,0,228)' },
+      { alt: 39370, color: 'rgb(216,0,255)' },
+      { alt: 37730, color: 'rgb(174,0,255)' },
+      { alt: 36089, color: 'rgb(150,0,255)' },
+      { alt: 34449, color: 'rgb(120,0,255)' },
+      { alt: 32808, color: 'rgb(96,0,255)' },
+      { alt: 31168, color: 'rgb(78,0,255)' },
+      { alt: 29528, color: 'rgb(54,0,255)' },
+      { alt: 27887, color: 'rgb(36,0,255)' },
+      { alt: 26247, color: 'rgb(18,0,255)' },
+      { alt: 24606, color: 'rgb(0,0,255)' },
+      { alt: 22966, color: 'rgb(0,30,255)' },
+      { alt: 21325, color: 'rgb(0,48,255)' },
+      { alt: 19685, color: 'rgb(0,84,255)' },
+      { alt: 18045, color: 'rgb(0,120,255)' },
+      { alt: 16404, color: 'rgb(0,150,255)' },
+      { alt: 14764, color: 'rgb(0,168,255)' },
+      { alt: 13123, color: 'rgb(0,192,255)' },
+      { alt: 11483, color: 'rgb(0,234,255)' },
+      { alt: 9843, color: 'rgb(0,255,228)' },
+      { alt: 8202, color: 'rgb(0,255,210)' },
+      { alt: 6562, color: 'rgb(0,255,156)' },
+      { alt: 4921, color: 'rgb(0,255,114)' },
+      { alt: 3937, color: 'rgb(0,255,54)' },
+      { alt: 3281, color: 'rgb(0,255,12)' },
+      { alt: 2625, color: 'rgb(30,255,0)' },
+      { alt: 1969, color: 'rgb(66,255,0)' },
+      { alt: 1312, color: 'rgb(204,255,0)' },
+      { alt: 984, color: 'rgb(240,255,0)' },
+      { alt: 656, color: 'rgb(255,234,0)' },
+      { alt: 328, color: 'rgb(255,224,98)' },
+      { alt: 0, color: 'rgb(255,255,255)' }
+    ];
+
+    function getTrackWeight() {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+      const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+      const isMacIPad = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      return (isIOS || isMacIPad) ? 2 : 4;
+    }
+
+
+    function getColorFromAltitude(feet) {
+      for (let i = 0; i < altitudeColorMap.length; i++) {
+        if (feet >= altitudeColorMap[i].alt) {
+          return altitudeColorMap[i].color;
+        }
+      }
+      return 'rgb(255,255,255)';
+    }
+
+    function formatTime(rawTimestamp) {
+      if (!rawTimestamp) return 'Heure inconnue';
+      let date;
+      if (!isNaN(rawTimestamp) && rawTimestamp.length >= 10) {
+        const num = Number(rawTimestamp);
+        date = new Date(num > 1e12 ? num : num * 1000);
+      } else {
+        date = new Date(rawTimestamp);
+      }
+      if (isNaN(date.getTime())) return 'Heure inconnue';
+      return date.toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+
+    function formatUTCTime(utcTimestamp) {
+      const [datePart, timePart] = utcTimestamp.replace('Z', '').split('T');
+      const [year, month, day] = datePart.split('-');
+      const [hours, minutes, seconds] = timePart.split(':');
+      return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    }
+
+    const map = L.map('map', {
+      preferCanvas: true
+    }).setView([0, 0], 2);
+
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      crossOrigin: true,
+      detectRetina: true
+    });
+    const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri',
+      crossOrigin: true,
+      detectRetina: true
+    });
+    const esriStreets = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri',
+      crossOrigin: true,
+      detectRetina: true
+    });
+    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri',
+      crossOrigin: true,
+      detectRetina: true
+    });
+    const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+      subdomains: 'abcd',
+      crossOrigin: true,
+      detectRetina: true
+    });
+    const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+      subdomains: 'abcd',
+      crossOrigin: true,
+      detectRetina: true
+    });
+    const opentopomap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> contributors',
+      crossOrigin: true,
+      detectRetina: true
+    });
+
+    esriSatellite.addTo(map);
+    L.control.scale().addTo(map);
+
+    L.control.layers({
+      "OpenStreetMap": osmLayer,
+      "Esri Topo": esriTopo,
+      "Esri Streets": esriStreets,
+      "Esri Satellite": esriSatellite,
+      "CartoDB Light": cartoLight,
+      "CartoDB Dark": cartoDark,
+      "OpenTopoMap": opentopomap,
+    }).addTo(map);
+
+    const multiFileInput = document.getElementById('multiCsvFiles');
+    const progressBar = document.getElementById('progressBar');
+    const mainTitle = document.getElementById('multi_file_button');
+    const heureEl = document.getElementById('heure');
+    const altitudeEl = document.getElementById('altitude');
+    const vitesseEl = document.getElementById('vitesse');
+    const directionEl = document.getElementById('direction');
+    const flightTimeEl = document.getElementById('flightTime');
+    const playBtn = document.getElementById('playBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const speedControl = document.getElementById('speedControl');
+    const flightSelector = document.getElementById('flightSelector');
+    const flightSelectorContainer = document.getElementById('flightSelectorContainer');
+    const flightSelectorToggle = document.getElementById('flightSelectorToggle');
+
+    const speedPresets = [
+      1000, // 1x
+      500,  // 2x
+      250,  // 4x
+      125,  // 8x
+      50,   // 20x
+      25,   // 40x
+      10,   // 100x
+      5,    // 200x
+      3.33  // 300x
+    ];
+
+    const speedLabels = [
+      "1x", "2x", "4x", "8x", "20x", "40x", "100x", "200x", "300x"
+    ];
+
+    playPauseBtn.addEventListener('click', togglePlayPause);
+    document.getElementById('screenshotBtn').addEventListener('click', takeScreenshot);
+    flightSelectorToggle.addEventListener('click', function () {
+      flightSelectorContainer.classList.toggle('collapsed');
+    });
+
+    speedControl.addEventListener('input', function () {
+      const speedIndex = parseInt(this.value);
+      playbackSpeed = speedPresets[speedIndex];
+      speedIndicator.textContent = speedLabels[speedIndex];
+      if (isPlaying) {
+        pauseFlight();
+        playFlight();
+      }
+    });
+
+    function togglePlayPause() {
+      if (isPlaying) {
+        pauseFlight();
+      } else {
+        playFlight();
+      }
+      updatePlayPauseButton();
+    }
+
+    function updatePlayPauseButton() {
+      playPauseBtn.innerHTML = isPlaying ? '⏸' : '▶';
+    }
+
+    function playFlight() {
+      if (!isPlaying && flightPathPoints.length > 0) {
+        isPlaying = true;
+        let currentIndex = parseInt(progressBar.value);
+
+        playbackInterval = setInterval(() => {
+          if (currentIndex >= flightPathPoints.length - 1) {
+            pauseFlight();
+            return;
+          }
+          currentIndex++;
+          progressBar.value = currentIndex;
+          updateDisplay(currentIndex);
+          updateAircraftPosition(currentIndex);
+        }, playbackSpeed);
+      }
+    }
+
+    function pauseFlight() {
+      clearInterval(playbackInterval);
+      isPlaying = false;
+    }
+
+    function updateAircraftPosition(index) {
+      if (!flightPathPoints || !aircraftMarker || index >= flightPathPoints.length) return;
+
+      const point = flightPathPoints[index];
+
+      aircraftMarker.setLatLng([point.lat, point.lng]);
+      aircraftMarker.setIcon(createAircraftIcon(point.direction));
+
+      const bounds = map.getBounds();
+      if (!bounds.contains([point.lat, point.lng])) {
+        map.panTo([point.lat, point.lng], { animate: true });
+      }
+    }
+
+    function updateDisplay(index) {
+      const point = flightPathPoints[index];
+      if (!point) return;
+
+      heureEl.textContent = point.time;
+      document.getElementById("UTCTime").textContent = point.utcTime;
+      altitudeEl.textContent = Math.round(point.altitudeFeet);
+      vitesseEl.textContent = Math.round(point.speed);
+      directionEl.textContent = Math.round(point.direction);
+    }
+
+    function handleSingleFile() {
+      const file = fileInput.files[0];
+      if (file) {
+        // Clear previous flights
+        clearAllFlights();
+        flightSelector.style.display = 'none';
+
+        // Process the single file
+        processCSVFile(file, 0, true);
+      }
+    }
+
+    function handleMultiFiles() {
+      const files = multiFileInput.files;
+      if (files.length > 0) {
+        // Clear previous flights
+        clearAllFlights();
+        flightSelector.innerHTML = '';
+
+        for (let i = 0; i < files.length; i++) {
+          processCSVFile(files[i], i, false);
+        }
+
+        flightSelectorContainer.style.display = 'flex';
+      }
+    }
+
+    function clearAllFlights() {
+      // Remove all existing flight paths and markers
+      allFlights.forEach(flight => {
+        if (flight.path) map.removeLayer(flight.path);
+        if (flight.startMarker) map.removeLayer(flight.startMarker);
+        if (flight.endMarker) map.removeLayer(flight.endMarker);
+        flight.altitudeSegments.forEach(segment => map.removeLayer(segment));
+      });
+
+      allFlights = [];
+      currentFlightIndex = 0;
+      currentFlightData = null;
+
+      // Clear the aircraft marker
+      if (aircraftMarker) {
+        map.removeLayer(aircraftMarker);
+        aircraftMarker = null;
+      }
+    }
+
+    function processCSVFile(file, index, isSingleFile) {
+      Papa.parse(file, {
+        header: true,
+        complete: function (results) {
+          const data = results.data;
+          const flightPoints = [];
+          const flightSegments = [];
+          let flightName = file.name.replace('.csv', '');
+          document.getElementById('toggleGraphBtn').style.display = 'block';
+
+          if (results.meta.fields && results.meta.fields.length >= 3) {
+            const c2Value = results.data[0] ? results.data[0][results.meta.fields[2]] : '';
+            flightName = c2Value || flightName;
+          }
+
+          data.forEach(row => {
+            if (row.Position && row.Altitude) {
+              const [lat, lng] = row.Position.split(',').map(Number);
+              const altitudeFeet = parseFloat(row.Altitude);
+              const direction = parseFloat(row.Direction) || 0;
+
+              if (!isNaN(lat) && !isNaN(lng) && !isNaN(altitudeFeet)) {
+                flightPoints.push({
+                  lat,
+                  lng,
+                  altitudeFeet: altitudeFeet,
+                  speed: row.Speed || 'N/A',
+                  direction: direction,
+                  time: formatTime(row.Timestamp),
+                  utcTime: formatUTCTime(row.UTC)
+                });
+              }
+            }
+          });
+
+          if (flightPoints.length < 2) return;
+
+          // Create altitude-based segments
+          const altitudeSegments = [];
+          for (let i = 0; i < flightPoints.length - 1; i++) {
+            const p1 = flightPoints[i];
+            const p2 = flightPoints[i + 1];
+            const avgAltFeet = (p1.altitudeFeet + p2.altitudeFeet) / 2;
+            const color = getColorFromAltitude(avgAltFeet);
+
+            const segment = L.polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], {
+              color: color,
+              weight: getTrackWeight()
+            }).addTo(map);
+
+            altitudeSegments.push(segment);
+
+            segment.on('mousemove', (e) => {
+              if (currentTooltip) {
+                map.removeLayer(currentTooltip);
+              }
+
+              const tooltipContent = `
+                <div class="tooltip-content">
+                  <strong>LOCAL TIME: </strong> ${p1.time}<br/>
+                  <strong>UTC TIME: </strong> ${p1.utcTime}<br/>
+                  <strong>ALTITUDE: </strong> ${p1.altitudeFeet.toFixed(0)} ft<br/>
+                  <strong>SPEED: </strong> ${p1.speed} kt<br/>
+                  <strong>TRACK: </strong> ${p1.direction}°<br/>
+                  <strong>LATITUDE: </strong> ${e.latlng.lat.toFixed(6)}<br/>
+                  <strong>LONGITUDE: </strong> ${e.latlng.lng.toFixed(6)}
+                </div>
+              `;
+
+              currentTooltip = L.tooltip({
+                permanent: false,
+                direction: 'top',
+                className: 'tooltip-content'
+              })
+                .setLatLng(e.latlng)
+                .setContent(tooltipContent)
+                .addTo(map);
+            });
+
+            segment.on('mouseout', () => {
+              if (currentTooltip) {
+                map.removeLayer(currentTooltip);
+                currentTooltip = null;
+              }
+            });
+          }
+
+          // Create start and end markers (visible by default)
+          const start = flightPoints[0];
+          const end = flightPoints[flightPoints.length - 1];
+
+          const startMarker = L.marker([start.lat, start.lng]).addTo(map);
+          const endMarker = L.marker([end.lat, end.lng]).addTo(map);
+
+          // Bind tooltips that only show on hover
+          startMarker.bindTooltip(`${flightName} - Takeoff`, {
+            permanent: false,
+            direction: 'top',
+            className: 'tooltip-content'
+          });
+
+          endMarker.bindTooltip(`${flightName} - Landing`, {
+            permanent: false,
+            direction: 'top',
+            className: 'tooltip-content'
+          });
+
+          // Show tooltip on mouseover
+          startMarker.on('mouseover', function () {
+            this.openTooltip();
+          });
+
+          // Hide tooltip on mouseout
+          startMarker.on('mouseout', function () {
+            this.closeTooltip();
+          });
+
+          // Show tooltip on mouseover
+          endMarker.on('mouseover', function () {
+            this.openTooltip();
+          });
+
+          // Hide tooltip on mouseout
+          endMarker.on('mouseout', function () {
+            this.closeTooltip();
+          });
+
+          // Store flight data
+          const flightData = {
+            name: flightName,
+            points: flightPoints,
+            path: null,
+            startMarker: startMarker,
+            endMarker: endMarker,
+            altitudeSegments: altitudeSegments,
+            data: data
+          };
+
+          allFlights.push(flightData);
+
+          // Add to flight selector if multiple files
+          if (!isSingleFile) {
+            const flightItem = document.createElement('div');
+            flightItem.className = 'flight-item';
+            flightItem.textContent = flightName;
+            flightItem.onclick = () => selectFlight(index);
+            flightSelector.appendChild(flightItem);
+          }
+
+          // If this is the first flight (or single file), select it by default
+          if (index === 0 || isSingleFile) {
+            selectFlight(index, isSingleFile);
+          }
+        }
+      });
+    }
+
+    function selectFlight(index, isSingleFile = false) {
+      if (index < 0 || index >= allFlights.length) return;
+
+      currentFlightIndex = index;
+      const flight = allFlights[index];
+      currentFlightData = flight;
+
+      // Update flight selector UI
+      const flightItems = document.querySelectorAll('.flight-item');
+      flightItems.forEach((item, i) => {
+        if (i === index) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+
+      // Set current flight data
+      flightPathPoints = flight.points;
+
+      // Remove previous aircraft marker if exists
+      if (aircraftMarker) {
+        map.removeLayer(aircraftMarker);
+      }
+
+      // Create new aircraft marker
+      aircraftMarker = L.marker(
+        [flightPathPoints[0].lat, flightPathPoints[0].lng],
+        {
+          icon: createAircraftIcon(flightPathPoints[0].direction),
+          rotationAngle: flightPathPoints[0].direction
+        }
+      ).addTo(map);
+
+      // Update UI
+      document.getElementById('multi_file_button').textContent = `Playback of flight ${flight.name}`;
+      progressBar.max = flightPathPoints.length - 1;
+      progressBar.disabled = false;
+      progressBar.value = 0;
+      updateDisplay(0);
+      updateAircraftPosition(0);
+
+      // Calculate and display flight time
+      flightTimeEl.textContent = calculateFlightTime(flight.data);
+
+      // Update chart
+      updateChart(flight.data);
+
+      // Fit bounds to this flight
+      map.fitBounds(L.latLngBounds(flightPathPoints.map(p => [p.lat, p.lng])));
+    }
+
+    /*
+    let showMarkers = false;
+
+    const vfrPoints = [
+      { coords: [33.43841601567446, -111.75538815237346], name: "THREE DOME CHURCH" },
+      { coords: [33.41199254647871, -111.72344653339482], name: "WAGON WHEEL" },
+      { coords: [33.451442, -111.669770], name: "MCKELLIPS ROAD" },
+      { coords: [33.43866693950161, -111.6626337051323], name: "BALL FIELDS" },
+      { coords: [33.410004, -111.613071], name: "POINT LIMA" },
+      { coords: [33.442993, -111.588846], name: "RC AIRFIELD" },
+      { coords: [33.36731941789664, -111.53085200313159], name: "AJ LANDFILL" },
+      { coords: [33.321551316756626, -111.42991940016202], name: "RENAISSANCE FESTIVAL" },
+      { coords: [33.253013, -111.414020], name: "CEMENT PLANT" },
+      { coords: [33.373270, -111.751450], name: "VALVISTA LAKES" },
+      { coords: [33.39124357152383, -111.69036638245055], name: "SUPER MALL" },
+      { coords: [33.06485236367131, -111.5148693346962], name: "MR VOLCANO" },
+      { coords: [33.25560430330835, -111.3388951495078], name: "FLORENCE JUNCTION" },
+      { coords: [33.37915128576638, -111.4605532335147], name: "GOLD CANYON" },
+      { coords: [33.24164274819704, -111.523013610029], name: "RITTENHOUSE" },
+      { coords: [33.1731, -111.67104], name: "THE GAP" },
+      { coords: [33.17206881765591, -111.4736358539546], name: "WATER SKY LAKE" },
+      { coords: [33.03058167410544, -111.6193482691844], name: "BLACK WATER" },
+    ];
+
+    function createVFRPointIcon() {
+      return L.divIcon({
+        className: 'vfr-icon',
+        html: `
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <circle cx="12" cy="12" r="10" fill="#2159ff" opacity="0.8"/>
+            <circle cx="12" cy="12" r="6" fill="#FFFFFF"/>
+          </svg>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+    }
+
+    const vfrMarkers = vfrPoints.map(point => {
+      const marker = L.marker(point.coords, {
+        icon: createVFRPointIcon()
+      }).bindTooltip(point.name, {
+        permanent: false,
+        direction: 'top',
+        className: 'tooltip-content'
+      });
+      return marker;
+    });
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .vfr-icon {
+        background-color: transparent;
+        border: none;
+        filter: drop-shadow(0 0 2px rgba(0,0,0,0.7));
+      }
+    `;
+    document.head.appendChild(style);
+
+    const toggleMarkersBtn = document.getElementById('toggleMarkersBtn');
+
+    toggleMarkersBtn.addEventListener('click', function () {
+      showMarkers = !showMarkers;
+
+      vfrMarkers.forEach(marker => {
+        if (showMarkers) {
+          map.addLayer(marker);
+          toggleMarkersBtn.style.backgroundColor = 'rgba(33, 89, 255)';
+          toggleMarkersBtn.style.color = 'rgb(255, 255, 255)';
+        } else {
+          map.removeLayer(marker);
+          toggleMarkersBtn.style.backgroundColor = 'rgba(255, 255, 255)';
+          toggleMarkersBtn.style.color = 'rgb(0, 0, 0)';
+        }
+      });
+    });
+    */
+
+    progressBar.addEventListener('input', function () {
+      const index = parseInt(this.value);
+      updateDisplay(index);
+      updateAircraftPosition(index);
+    });
+
+    function getChartTheme() {
+      const style = getComputedStyle(document.body);
+      return {
+        axisColor: style.getPropertyValue('--chart-axis-color').trim(),
+        gridColor: style.getPropertyValue('--chart-grid-color').trim(),
+        tooltipBg: style.getPropertyValue('--tooltip-bg').trim(),
+        textMain: style.getPropertyValue('--text-main').trim(),
+        textSecondary: style.getPropertyValue('--text-secondary').trim()
+      };
+    }
+
+    function updateChart(data) {
+      if (!data) return;
+
+      const theme = getChartTheme();
+      const altitude = [];
+      const speed = [];
+
+      data.forEach(row => {
+        if (row.Timestamp && !isNaN(row.Altitude) && !isNaN(row.Speed)) {
+          const parsedTime = new Date(parseInt(row.Timestamp) * 1000);
+          if (!isNaN(parsedTime)) {
+            altitude.push({ x: parsedTime, y: row.Altitude });
+            speed.push({ x: parsedTime, y: row.Speed });
+          }
+        }
+      });
+
+      const ctx = document.getElementById('flightChart').getContext('2d');
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [
+            {
+              label: 'GROUND SPEED',
+              data: speed,
+              borderColor: '#f0ad4e',
+              backgroundColor: '#f0ad4e',
+              yAxisID: 'y1',
+              tension: 0.3,
+              fill: false,
+              pointRadius: 0
+            },
+            {
+              label: 'ALTITUDE',
+              data: altitude,
+              borderColor: '#00bfff',
+              backgroundColor: '#00bfff',
+              yAxisID: 'y',
+              tension: 0.3,
+              fill: false,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          stacked: false,
+          plugins: {
+            title: {
+              display: false
+            },
+            legend: {
+              labels: {
+                color: theme.textMain
+              }
+            },
+            tooltip: {
+              backgroundColor: theme.tooltipBg,
+              titleColor: theme.textMain,
+              bodyColor: theme.textMain,
+              borderColor: theme.gridColor,
+              borderWidth: 1,
+              callbacks: {
+                label: function (context) {
+                  if (context.dataset.label === 'GROUND SPEED') {
+                    return 'Ground Speed: ' + context.formattedValue + ' kt';
+                  } else if (context.dataset.label === 'ALTITUDE') {
+                    return 'Altitude: ' + context.formattedValue + ' ft';
+                  }
+                  return context.formattedValue;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'minute',
+                tooltipFormat: 'PPpp'
+              },
+              ticks: {
+                color: theme.axisColor
+              },
+              grid: {
+                color: theme.gridColor
+              }
+            },
+            y: {
+              type: 'linear',
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Altitude (ft)',
+                color: theme.axisColor
+              },
+              ticks: {
+                color: theme.axisColor
+              },
+              grid: {
+                color: theme.gridColor
+              }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              title: {
+                display: true,
+                text: 'Speed (kt)',
+                color: theme.axisColor
+              },
+              ticks: {
+                color: theme.axisColor
+              },
+              grid: {
+                drawOnChartArea: false
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Listen for theme changes to update chart
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+      if (currentFlightData) {
+        updateChart(currentFlightData.data);
+      }
+    });
+
+    const toggleGraphBtn = document.getElementById('toggleGraphBtn');
+    const chartContainer = document.getElementById('chart-container');
+    const infosbox = document.querySelector('.infosbox');
+
+    toggleGraphBtn.addEventListener('click', function () {
+      chartContainer.classList.toggle('collapsed');
+      infosbox.classList.toggle('collapsed');
+      infosbox.classList.toggle('expanded');
+
+      if (chartContainer.classList.contains('collapsed')) {
+        toggleGraphBtn.textContent = '▲';
+        toggleGraphBtn.title = 'Show graph';
+      } else {
+        toggleGraphBtn.textContent = '▼';
+        toggleGraphBtn.title = 'Hide graph';
+      }
+
+      if (!chartContainer.classList.contains('collapsed') && chartInstance) {
+        chartInstance.update();
+      }
+    });
+
+    infosbox.classList.add('collapsed');
+    chartContainer.classList.add('collapsed');
+    toggleGraphBtn.textContent = '▲';
+    toggleGraphBtn.title = 'Show graph';
+
+    async function takeScreenshot() {
+      const screenshotBtn = document.getElementById('screenshotBtn');
+      const multiFileBtn = document.getElementById('multi_file_button');
+      const flightSelectorCont = document.getElementById('flightSelectorContainer');
+      const infosbox = document.querySelector('.infosbox');
+      const layersControl = document.querySelector('.leaflet-control-layers');
+      const zoomControl = document.querySelector('.leaflet-control-zoom');
+      const scaleControl = document.querySelector('.leaflet-control-scale');
+      const attributionControl = document.querySelector('.leaflet-control-attribution');
+
+      // Elements to hide (UI elements)
+      const elementsToHide = [
+        screenshotBtn,
+        multiFileBtn,
+        flightSelectorCont,
+        infosbox,
+        layersControl,
+        zoomControl,
+        scaleControl,
+        attributionControl
+      ];
+
+      // Save initial visibility/display
+      const originalVisibility = elementsToHide.map(el => el ? el.style.visibility : null);
+
+      // Hide UI elements
+      elementsToHide.forEach(el => {
+        if (el) el.style.visibility = 'hidden';
+      });
+
+      // Also hide takeoff/landing pins, aircraft marker, and shadows
+      const shadowPane = document.querySelector('.leaflet-shadow-pane');
+      if (shadowPane) shadowPane.style.display = 'none';
+
+      allFlights.forEach(flight => {
+        if (flight.startMarker) flight.startMarker.getElement().style.display = 'none';
+        if (flight.endMarker) flight.endMarker.getElement().style.display = 'none';
+      });
+      if (aircraftMarker) aircraftMarker.getElement().style.display = 'none';
+
+      try {
+        // We use html2canvas on the #map element directly instead of document.body
+        // This is safer and avoids potential issues with hidden elements
+        const canvas = await html2canvas(document.getElementById('map'), {
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: '#262626', // Match map background
+          logging: false,
+          scale: 2,
+          ignoreElements: (element) => {
+            // Further protect against any lingering UI elements inside map container if any
+            return element.classList.contains('leaflet-control-container');
+          }
+        });
+
+        const link = document.createElement('a');
+        link.download = `flight_playback_${new Date().getTime()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (error) {
+        console.error('Screenshot failed:', error);
+        alert('Failed to take screenshot. There might be a CORS issue with map tiles.');
+      } finally {
+        // Restore UI elements
+        elementsToHide.forEach((el, i) => {
+          if (el) el.style.visibility = originalVisibility[i];
+        });
+
+        // Restore takeoff/landing pins, aircraft marker, and shadows
+        if (shadowPane) shadowPane.style.display = '';
+
+        allFlights.forEach(flight => {
+          if (flight.startMarker) flight.startMarker.getElement().style.display = '';
+          if (flight.endMarker) flight.endMarker.getElement().style.display = '';
+        });
+        if (aircraftMarker) aircraftMarker.getElement().style.display = '';
+      }
+    }
+  </script>
+</body>
+
+</html>
