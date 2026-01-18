@@ -137,6 +137,69 @@
       height: 44px;
     }
 
+    #tipBtn {
+      position: absolute;
+      top: 79px;
+      right: 10px;
+      z-index: 1001;
+      padding: 0;
+      background-color: var(--glass-bg);
+      color: var(--text-main);
+      border-radius: 22px;
+      /* Fixed radius to prevent 'bending' */
+      border: 1px solid var(--glass-border);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      box-shadow: 0 4px 6px var(--shadow-color);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      /* Align to the right where the icon stays */
+      height: 44px;
+      width: 140px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-decoration: none;
+      padding-right: 9px;
+      /* Precisely centers 24px icon in 44px button (1px border) */
+    }
+
+    #tipBtn .btn-text {
+      margin-right: 12px;
+      opacity: 1;
+      transform: translateX(0);
+      transition: opacity 1.5s ease, transform 1.5s cubic-bezier(0.4, 0, 0.2, 1), margin 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-block;
+    }
+
+    #tipBtn img {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      display: block;
+    }
+
+    #tipBtn.shrunk {
+      width: 44px;
+    }
+
+    #tipBtn.shrunk .btn-text {
+      opacity: 0;
+      transform: translateX(40px);
+      /* Pushed into/behind the icon */
+      margin-right: -40px;
+      /* Collapse space to keep icon centered */
+    }
+
+    #tipBtn:hover {
+      transform: scale(1.05);
+      background-color: var(--button-hover);
+    }
+
     #screenshotBtn:hover {
       transform: scale(1.1);
       background-color: var(--button-hover);
@@ -669,6 +732,11 @@
   <input type="file" id="multiCsvFiles" accept=".csv" multiple onchange="handleMultiFiles()" />
   <label id="multi_file_button" for="multiCsvFiles">Select CSV file(s)</label>
   <button id="screenshotBtn" title="Take Screenshot">📸</button>
+  <a id="tipBtn" href="https://buymeacoffee.com/flightplayback" target="_blank" title="Leave a tip">
+    <span class="btn-text">Leave a tip</span>
+    <img src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg" alt="Buy Me a Coffee"
+      style="width: 24px; height: 24px;">
+  </a>
   <div id="map"></div>
   <div id="flightSelectorContainer" style="display: none;">
     <div id="flightSelector" class="flight-selector"></div>
@@ -1630,6 +1698,15 @@
         if (aircraftMarker) aircraftMarker.getElement().style.display = '';
       }
     }
+    // Initialize Buy Me a Coffee button animation
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const tipBtn = document.getElementById('tipBtn');
+        if (tipBtn) {
+          tipBtn.classList.add('shrunk');
+        }
+      }, 3000);
+    });
   </script>
 </body>
 
