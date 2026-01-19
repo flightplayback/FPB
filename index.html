@@ -959,8 +959,10 @@
     }
 
     const map = L.map('map', {
-      preferCanvas: true
-    }).setView([0, 0], 2);
+      preferCanvas: true,
+      minZoom: 3,
+      worldCopyJump: true
+    }).setView([37.5, 14.2], 3);
 
     const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
