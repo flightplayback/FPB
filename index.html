@@ -241,7 +241,7 @@
 
     #layerModal {
       position: fixed;
-      top: 50%;
+      top: 45%;
       left: 50%;
       transform: translate(-50%, -50%);
       background: var(--glass-bg);
@@ -332,7 +332,7 @@
       background-color: var(--glass-bg);
       backdrop-filter: blur(5px);
       -webkit-backdrop-filter: blur(5px);
-      padding: 12px 20px;
+      padding: 4px 20px;
       border-radius: 25px;
       color: var(--text-main);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -508,7 +508,7 @@
     /* Flight Selector Container */
     #flightSelectorContainer {
       position: absolute;
-      top: 200px;
+      top: 198px;
       left: 0;
       z-index: 1001;
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -596,19 +596,41 @@
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
-      top: -18px;
+      top: -17px;
+      /* Adjusted position */
       background: var(--glass-bg);
       color: var(--text-main);
       border: 1px solid var(--glass-border);
       border-bottom: none;
       border-radius: 12px 12px 0 0;
-      padding: 1px 15px;
-      cursor: pointer;
-      font-size: 12px;
+      padding: 0;
+      /* Reset padding */
+      cursor: grab;
+      /* Grab cursor */
+      width: 60px;
+      /* Wider button */
+      height: 16px;
       backdrop-filter: blur(5px);
       -webkit-backdrop-filter: blur(5px);
       box-shadow: 0 -2px 10px var(--shadow-color);
       display: none;
+      /* Hidden by default */
+      /* Flex to center handle */
+      align-items: center;
+      justify-content: center;
+      z-index: 1002;
+    }
+
+    #toggleGraphBtn:active {
+      cursor: grabbing;
+    }
+
+    #toggleGraphBtn .handle-bar {
+      width: 30px;
+      height: 4px;
+      background-color: var(--text-secondary);
+      border-radius: 2px;
+      opacity: 0.5;
     }
 
     .tooltip-content {
@@ -625,6 +647,10 @@
     .tooltip-content strong {
       color: var(--text-main);
       font-weight: 600;
+    }
+
+    .speed-indicator {
+      font-size: 0.7rem;
     }
 
     /* RESPONSIVE MEDIA QUERIES */
@@ -971,7 +997,9 @@
   </button>
   <!-- <button id="toggleMarkersBtn">VFR</button> -->
   <div class="infosbox collapsed">
-    <button id="toggleGraphBtn">▲</button>
+    <button id="toggleGraphBtn" title="Slide to toggle graph">
+      <div class="handle-bar"></div>
+    </button>
     <div class="info">
       <div class="info-grid">
         <div class="info-header">
@@ -1447,6 +1475,9 @@
         map.removeLayer(aircraftMarker);
         aircraftMarker = null;
       }
+
+      const toggleBtn = document.getElementById('toggleGraphBtn');
+      if (toggleBtn) toggleBtn.style.display = 'none';
     }
 
     function processCSVFile(file, index, isSingleFile) {
@@ -1457,7 +1488,8 @@
           const flightPoints = [];
           const flightSegments = [];
           let flightName = file.name.replace('.csv', '');
-          document.getElementById('toggleGraphBtn').style.display = 'block';
+          const toggleBtn = document.getElementById('toggleGraphBtn');
+          toggleBtn.style.display = 'flex'; // Use flex to center content
 
           if (results.meta.fields && results.meta.fields.length >= 3) {
             const c2Value = results.data[0] ? results.data[0][results.meta.fields[2]] : '';
@@ -1754,10 +1786,17 @@
       };
     }
 
+    function getGraphLineWidth() {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isSmallScreen = window.innerWidth <= 1024;
+      return (isMobile || isSmallScreen) ? 1 : 2;
+    }
+
     function updateChart(data) {
       if (!data) return;
 
       const theme = getChartTheme();
+      const lineWidth = getGraphLineWidth();
       const altitude = [];
       const speed = [];
 
@@ -1786,9 +1825,10 @@
               borderColor: '#f0ad4e',
               backgroundColor: '#f0ad4e',
               yAxisID: 'y1',
-              tension: 0.3,
+              tension: 0.1, // Less bold zigzags
               fill: false,
-              pointRadius: 0
+              pointRadius: 0,
+              borderWidth: lineWidth // Responsive line width
             },
             {
               label: 'ALTITUDE',
@@ -1796,9 +1836,10 @@
               borderColor: '#00bfff',
               backgroundColor: '#00bfff',
               yAxisID: 'y',
-              tension: 0.3,
+              tension: 0.1, // Less bold zigzags
               fill: false,
-              pointRadius: 0
+              pointRadius: 0,
+              borderWidth: lineWidth // Responsive line width
             }
           ]
         },
@@ -1897,28 +1938,108 @@
     const chartContainer = document.getElementById('chart-container');
     const infosbox = document.querySelector('.infosbox');
 
-    toggleGraphBtn.addEventListener('click', function () {
-      chartContainer.classList.toggle('collapsed');
-      infosbox.classList.toggle('collapsed');
-      infosbox.classList.toggle('expanded');
+    // Drag Logic
+    let isDragging = false;
+    let dragStartY = 0;
+    let draggedDistance = 0;
+    let startHeight = 0;
+    const MAX_HEIGHT = 240;
 
-      if (chartContainer.classList.contains('collapsed')) {
-        toggleGraphBtn.textContent = '▲';
-        toggleGraphBtn.title = 'Show graph';
+    function finishDrag(wasClick) {
+      isDragging = false;
+
+      const currentHeight = chartContainer.offsetHeight;
+
+      // Restore transitions
+      chartContainer.style.transition = 'height 0.3s ease, opacity 0.3s ease';
+
+      // Remove inline styles
+      chartContainer.style.height = '';
+      chartContainer.style.opacity = '';
+
+      const isCurrentlyCollapsed = chartContainer.classList.contains('collapsed');
+      let shouldExpand = false;
+
+      if (wasClick) {
+        shouldExpand = isCurrentlyCollapsed;
       } else {
-        toggleGraphBtn.textContent = '▼';
-        toggleGraphBtn.title = 'Hide graph';
+        // Dragged: snap to closest
+        shouldExpand = currentHeight > (MAX_HEIGHT / 3); // Threshold to keep open
       }
 
-      if (!chartContainer.classList.contains('collapsed') && chartInstance) {
-        chartInstance.update();
+      if (shouldExpand) {
+        chartContainer.classList.remove('collapsed');
+        infosbox.classList.remove('collapsed');
+        infosbox.classList.add('expanded');
+      } else {
+        chartContainer.classList.add('collapsed');
+        infosbox.classList.add('collapsed');
+        infosbox.classList.remove('expanded');
+      }
+
+      if (chartInstance) {
+        // Delay update slightly to let transition start
+        setTimeout(() => chartInstance.update(), 10);
+      }
+    }
+
+    toggleGraphBtn.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dragStartY = e.clientY;
+      draggedDistance = 0;
+      startHeight = chartContainer.offsetHeight;
+      chartContainer.style.transition = 'none';
+    });
+
+    toggleGraphBtn.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      dragStartY = e.touches[0].clientY;
+      draggedDistance = 0;
+      startHeight = chartContainer.offsetHeight;
+      chartContainer.style.transition = 'none';
+    }, { passive: false });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const dy = dragStartY - e.clientY;
+      draggedDistance = Math.abs(dy);
+
+      // Drag logic
+      let newHeight = startHeight + dy;
+      newHeight = Math.max(0, Math.min(newHeight, MAX_HEIGHT));
+      chartContainer.style.height = `${newHeight}px`;
+      chartContainer.style.opacity = Math.max(0.1, Math.min(1, newHeight / 50));
+    });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const dy = dragStartY - e.touches[0].clientY;
+      draggedDistance = Math.abs(dy);
+
+      let newHeight = startHeight + dy;
+      newHeight = Math.max(0, Math.min(newHeight, MAX_HEIGHT));
+      chartContainer.style.height = `${newHeight}px`;
+      chartContainer.style.opacity = Math.max(0.1, Math.min(1, newHeight / 50));
+    }, { passive: false });
+
+    document.addEventListener('mouseup', (e) => {
+      if (isDragging) {
+        // If moved less than 5px, treat as click
+        finishDrag(draggedDistance < 5);
+      }
+    });
+
+    document.addEventListener('touchend', (e) => {
+      if (isDragging) {
+        finishDrag(draggedDistance < 5);
       }
     });
 
     infosbox.classList.add('collapsed');
     chartContainer.classList.add('collapsed');
-    toggleGraphBtn.textContent = '▲';
-    toggleGraphBtn.title = 'Show graph';
+    // No text content update needed
 
     async function takeScreenshot() {
       const screenshotBtn = document.getElementById('screenshotBtn');
@@ -2022,4 +2143,3 @@
 </body>
 
 </html>
-
