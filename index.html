@@ -259,6 +259,70 @@
       /* Explicitly hidden in CSS too */
     }
 
+    #errorModal {
+      position: fixed;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--glass-bg);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 59, 48, 0.3);
+      /* Red border for error */
+      border-radius: 20px;
+      padding: 20px;
+      z-index: 2100;
+      /* Higher than layer modal */
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      width: 320px;
+      text-align: center;
+      color: var(--text-main);
+      display: none;
+    }
+
+    #errorOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      z-index: 2099;
+      display: none;
+    }
+
+    #errorModal h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #ff3b30;
+      /* Red color for title */
+    }
+
+    #errorModal p {
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+
+    #errorModal button {
+      background: var(--button-bg);
+      border: 1px solid var(--button-border);
+      color: var(--text-main);
+      padding: 8px 20px;
+      border-radius: 15px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    #errorModal button:hover {
+      background: var(--button-hover);
+    }
+
     #layerModal h3 {
       margin-top: 0;
       margin-bottom: 20px;
@@ -478,8 +542,8 @@
       background-color: transparent;
       border: none;
       transform-origin: center;
-      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.8));
-      /* Stronger shadow for visibility */
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+      /* Enhanced multi-layer shadow for maximum visibility and contrast */
     }
 
     .aircraft-icon svg {
@@ -948,8 +1012,10 @@
 </head>
 
 <body>
-  <input type="file" id="multiCsvFiles" accept=".csv" multiple onchange="handleMultiFiles()" />
-  <label id="multi_file_button" for="multiCsvFiles">Select CSV file(s)</label>
+  <input type="file" id="multiCsvFiles"
+    accept="text/csv,text/comma-separated-values,application/csv,.csv,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz+xml,.kml,.kmz"
+    multiple onchange="handleMultiFiles()" />
+  <label id="multi_file_button" for="multiCsvFiles">Select Flight file(s)</label>
   <button id="screenshotBtn" title="Take Screenshot">
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1098,15 +1164,130 @@
       return "00:00:00";
     }
 
-    function createAircraftIcon(rotation = 0) {
-      return L.divIcon({
-        className: 'aircraft-icon',
-        html: `
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="-23.0965 -12.669 72.53 48.12" width="32" height="32" style="transform: rotate(${rotation}deg); transform-origin: center;">
-	          <path d="M 16.793 12.613 H 32.585 l 15.491 -1.694 C 49.762 9.725 49.856 4.163 48.479 3.318 L 32.109 1.648 l -10.228 0 l -4.852 -1.868 L 16.139 -10.215 L 20.714 -10.552 C 20.971 -10.809 20.886 -11.009 20.714 -11.151 L 13.982 -11.067 L 13.276 -12.669 L 12.519 -11.032 L 5.731 -11.214 C 5.524 -11.108 5.56 -10.745 5.748 -10.598 L 10.257 -10.265 l -0.809 9.966 l -4.372 1.874 L -5.835 1.648 L -21.841 3.135 C -23.646 3.254 -23.46 10.775 -21.571 10.893 L -5.854 12.528 L 9.609 12.613 L 11.801 29.78 L 0.57 29.847 C -1.858 30.337 -0.087 35.092 0.879 35.454 l 24.282 0 C 27.535 34.283 27.704 29.561 25.157 29.746 L 14.652 29.78 Z" fill="black" stroke="black" stroke-width="0.8"/>
+    function createAircraftIcon(rotation = 0, model = "") {
+      const isAirbusA320 = /A3(1[89]|2[01])/i.test(model || "");
+      const isAirbusA330 = /A33[23789P]|A30[LT]/i.test(model || "");
+      const isAirbusA340 = /A34[23456]|A340/i.test(model || "");
+      const isAirbusA380 = /A388|A380/i.test(model || "");
+      const isBoeing737 = /B(3[789]M|73[1-9])/i.test(model || "");
+      const isBoeing747 = /B74[1-48DRSCF]|BLCF/i.test(model || "");
+      const isBoeing757 = /B75[023]/i.test(model || "");
+      const isBoeing767 = /B76[234]|B462|B767/i.test(model || "");
+      const isBoeing777 = /B77[2L3WX89F]/i.test(model || "");
+      const isBoeing787 = /B78[89X]/i.test(model || "");
+      const isEmbraerEJet = /E(19[05]|295)/i.test(model || "");
+
+      let svgHtml = '';
+      if (isAirbusA320) {
+        // Custom Airbus A320 Family Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <path d="M 251.239 4.012 C 242.63 11.82 234.623 25.533 230.719 39.347 C 229.117 45.252 228.817 51.959 228.316 111.718 L 227.816 177.582 L 211.3 186.391 L 194.784 195.299 L 194.183 180.085 C 193.783 169.674 193.082 163.769 191.981 161.166 L 190.379 157.362 L 176.566 157.663 L 162.752 157.963 L 161.251 160.966 C 160.25 163.168 159.749 168.773 159.449 181.686 C 158.948 202.006 159.249 204.208 162.752 205.109 C 164.654 205.609 165.255 206.41 165.255 208.412 C 165.255 211.015 161.451 213.117 97.989 247.15 C 60.953 266.869 29.622 284.186 28.421 285.488 C 25.218 288.891 23.416 296.098 22.315 309.611 C 21.814 315.918 21.514 321.323 21.714 321.423 C 21.814 321.623 23.216 319.221 24.817 316.018 L 27.62 310.212 L 99.09 285.388 L 170.46 260.563 L 199.388 260.563 L 228.316 260.563 L 228.316 315.817 C 228.316 382.282 229.618 399.7 236.725 427.427 L 239.027 436.536 L 233.922 441.541 C 228.116 447.246 213.602 457.856 190.279 473.272 C 181.471 479.077 173.463 484.983 172.562 486.485 C 171.361 488.186 170.76 491.79 170.46 497.896 C 170.059 505.703 170.26 506.804 171.661 506.804 C 172.562 506.804 189.478 502.7 209.298 497.796 C 229.117 492.791 245.633 488.787 246.134 488.787 C 246.634 488.787 247.435 492.29 248.036 496.695 C 248.636 500.999 249.938 506.304 250.939 508.406 C 252.64 511.809 253.241 512.31 256.344 512.31 C 259.447 512.31 260.047 511.809 261.749 508.406 C 262.75 506.304 264.051 500.999 264.652 496.695 C 265.253 492.29 266.053 488.787 266.554 488.787 C 267.054 488.787 283.571 492.891 303.39 497.796 C 323.209 502.801 340.126 506.804 341.027 506.804 C 342.428 506.804 342.628 505.703 342.228 497.896 C 341.928 491.79 341.327 488.186 340.126 486.384 C 339.125 484.983 331.317 479.077 322.609 473.372 C 299.987 458.457 284.672 447.346 278.766 441.541 L 273.661 436.536 L 275.963 427.427 C 283.07 399.7 284.371 382.282 284.371 315.817 L 284.371 260.563 L 313.3 260.563 L 342.228 260.563 L 413.598 285.388 L 485.068 310.212 L 487.871 316.018 C 489.472 319.221 490.873 321.623 490.974 321.423 C 491.174 321.323 490.873 315.918 490.373 309.611 C 489.272 296.098 487.47 288.891 484.267 285.488 C 483.066 284.186 451.735 266.869 414.699 247.15 C 351.237 213.117 347.433 211.015 347.433 208.412 C 347.433 206.41 348.034 205.609 349.935 205.109 C 353.439 204.208 353.739 202.006 353.239 181.686 C 352.938 168.773 352.438 163.168 351.437 160.966 L 349.935 157.963 L 336.122 157.663 L 322.308 157.362 L 320.707 161.166 C 319.606 163.769 318.905 169.674 318.505 180.085 L 317.904 195.299 L 301.188 186.291 L 284.371 177.282 L 284.371 115.121 C 284.271 48.356 284.071 44.652 279.066 31.139 C 277.765 27.435 275.062 21.83 273.26 18.727 C 269.757 12.921 258.246 0.308 256.344 0.308 C 255.843 0.308 253.541 2.01 251.239 4.012 Z" fill="#fed700"/>
+          </svg>
+        `;
+      } else if (isAirbusA330) {
+        // Custom Airbus A330 Family Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)">
+              <path d="M2507 5080 c-68 -80 -132 -246 -161 -420 -28 -167 -36 -354 -36 -820 l0 -456 -47 -36 c-43 -32 -309 -198 -318 -198 -2 0 -5 56 -7 123 -2 86 -7 129 -17 140 -11 14 -33 17 -112 17 -134 0 -134 1 -134 -209 0 -152 1 -156 23 -166 59 -26 50 -32 -754 -534 -514 -321 -783 -495 -798 -515 -12 -17 -48 -66 -79 -108 -44 -60 -57 -85 -57 -113 0 -19 2 -35 5 -35 3 0 427 165 942 366 l938 366 185 14 c102 7 190 13 196 14 9 0 13 -138 17 -512 5 -512 13 -672 53 -983 14 -114 48 -297 60 -328 4 -11 -62 -59 -233 -172 -131 -86 -269 -178 -308 -203 -86 -58 -105 -91 -105 -184 0 -48 4 -68 13 -68 7 0 159 40 337 90 179 49 332 90 340 90 11 0 21 -28 38 -98 24 -106 43 -142 72 -142 29 0 48 36 72 142 17 70 27 98 38 98 8 0 161 -41 340 -90 178 -50 330 -90 337 -90 20 0 17 127 -5 170 -18 38 -9 31 -395 285 -173 114 -237 161 -233 172 13 32 46 214 60 328 42 336 56 603 56 1088 0 319 3 407 13 407 6 -1 95 -7 197 -14 l185 -14 938 -366 c515 -201 939 -366 942 -366 3 0 5 16 5 35 0 28 -13 53 -57 113 -31 42 -67 91 -79 108 -15 20 -285 195 -798 515 -804 502 -813 508 -753 534 21 10 22 14 22 166 0 210 0 209 -134 209 -79 0 -101 -3 -112 -17 -10 -11 -15 -54 -17 -140 -2 -67 -5 -123 -7 -123 -9 0 -275 166 -317 198 l-48 36 0 451 c0 600 -14 777 -75 988 -44 153 -129 297 -175 297 -10 0 -34 -18 -53 -40z" fill="#fed700"/>
+            </g>
+          </svg>
+        `;
+      } else if (isAirbusA340) {
+        // Custom Airbus A340 Family Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)">
+              <path d="M2507 5053 c-58 -88 -78 -129 -116 -236 -73 -207 -74 -216 -80 -894 -6 -591 -7 -612 -26 -638 -11 -15 -92 -73 -180 -129 l-160 -103 -3 88 c-3 81 -5 90 -29 109 -42 33 -149 25 -175 -14 -4 -6 -8 -81 -8 -166 l0 -155 -306 -195 c-168 -107 -310 -196 -315 -198 -5 -2 -9 45 -9 111 0 125 -6 141 -56 153 -39 10 -114 -2 -133 -20 -13 -14 -17 -48 -21 -203 l-5 -187 -325 -207 -325 -207 -67 -104 c-55 -85 -67 -110 -67 -146 l-1 -42 60 30 c62 31 785 320 801 320 5 0 9 -6 9 -14 0 -7 6 -19 14 -25 12 -10 17 -8 25 8 6 11 11 28 11 39 0 14 14 25 53 40 28 11 59 23 68 27 13 5 18 -2 23 -29 8 -43 23 -47 32 -8 12 60 21 68 105 101 46 18 89 35 95 37 6 3 15 -9 20 -26 13 -45 26 -42 39 10 l11 45 104 41 105 41 10 -34 c14 -47 28 -43 39 11 l9 45 89 36 c48 19 94 35 101 35 7 0 17 -19 23 -42 12 -58 36 -57 50 2 13 53 16 54 194 65 l118 7 5 -468 c4 -479 13 -632 57 -989 11 -88 28 -198 37 -243 11 -56 13 -86 6 -90 -118 -75 -569 -392 -579 -407 -17 -27 -44 -131 -44 -173 0 -27 3 -32 18 -28 9 3 46 12 82 21 36 9 181 52 322 96 142 43 261 79 266 79 4 0 13 -28 20 -63 17 -89 30 -130 47 -152 15 -20 15 -20 30 0 17 22 30 63 47 153 7 34 16 62 21 62 4 0 103 -30 220 -66 175 -54 451 -134 464 -134 17 0 -16 167 -41 205 -10 15 -461 332 -579 407 -7 4 -5 34 6 90 9 45 26 155 37 243 44 357 53 510 57 989 l5 469 106 -7 c186 -12 189 -12 196 -54 3 -21 11 -44 16 -52 9 -13 12 -12 25 4 8 11 15 29 15 40 0 45 12 46 110 8 l95 -38 12 -48 c7 -27 15 -51 18 -54 10 -10 25 21 25 52 0 23 3 27 18 21 9 -4 58 -23 109 -42 85 -33 92 -38 98 -67 4 -17 9 -40 12 -50 5 -19 6 -19 19 -1 8 10 14 27 14 37 0 24 2 24 111 -20 l94 -38 7 -44 c4 -23 10 -45 13 -49 9 -8 25 21 25 47 0 28 3 27 75 -2 52 -21 60 -28 70 -62 13 -47 32 -54 46 -16 l10 29 382 -152 c210 -83 406 -164 435 -178 l52 -27 -1 42 c0 36 -12 61 -67 146 l-67 104 -325 207 -325 207 -6 189 c-3 105 -6 191 -7 192 -1 1 -16 10 -34 19 -40 21 -131 15 -156 -10 -13 -13 -18 -41 -22 -130 l-5 -113 -307 196 -308 196 0 157 0 157 -26 20 c-43 34 -150 26 -176 -13 -4 -6 -8 -49 -8 -95 0 -71 -2 -82 -16 -77 -43 16 -317 202 -332 224 -15 24 -18 85 -23 637 -5 577 -7 615 -28 707 -23 104 -70 247 -103 313 -29 58 -108 175 -118 175 -5 0 -29 -30 -53 -67z" fill="#fed700"/>
+            </g>
+          </svg>
+        `;
+      } else if (isAirbusA380) {
+        // Custom Airbus A380 Superjumbo Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)">
+              <path d="M2504 5083 c-69 -68 -128 -238 -159 -453 -15 -107 -34 -457 -38 -720 l-2 -144 -265 -223 -265 -223 -5 130 c-4 101 -8 133 -20 140 -22 14 -184 12 -198 -2 -9 -9 -12 -76 -12 -239 l0 -226 -232 -195 -233 -196 -3 129 c-3 129 -3 130 -28 139 -33 13 -145 13 -178 0 l-26 -10 0 -227 0 -228 -358 -301 c-196 -165 -367 -315 -380 -334 -40 -59 -54 -127 -59 -270 l-4 -135 29 32 c22 26 113 70 432 212 223 99 411 181 419 183 8 2 17 -10 23 -29 11 -40 35 -43 44 -5 16 73 17 75 115 119 52 23 97 42 102 42 4 1 7 -8 7 -18 0 -62 35 -68 50 -8 6 23 12 47 14 52 3 8 118 63 191 91 7 3 17 -12 24 -36 17 -58 38 -51 51 18 l12 59 366 162 c202 90 372 165 379 168 8 3 12 -143 16 -584 5 -619 11 -714 56 -876 l19 -68 -317 -262 c-174 -143 -322 -268 -329 -277 -76 -89 -134 -226 -148 -348 -11 -98 -18 -99 454 81 389 148 407 154 414 133 3 -11 18 -77 33 -146 54 -252 76 -252 130 0 15 69 30 135 33 146 7 21 25 15 414 -133 472 -180 465 -179 454 -81 -14 122 -72 259 -148 348 -7 9 -155 134 -329 277 l-317 262 19 68 c45 162 51 257 56 876 4 441 8 587 16 584 7 -3 177 -78 379 -168 l366 -162 12 -59 c13 -69 34 -76 51 -18 7 24 17 39 24 36 73 -28 188 -83 191 -91 2 -5 8 -29 14 -52 15 -60 50 -54 50 8 0 10 3 19 8 18 4 0 49 -19 101 -42 98 -44 99 -46 115 -119 9 -38 33 -35 44 5 6 19 15 31 23 29 8 -2 196 -84 419 -183 319 -142 410 -186 432 -212 l29 -32 -4 135 c-5 139 -18 205 -56 267 -11 17 -182 168 -380 335 l-361 303 0 227 c0 214 -1 228 -19 238 -25 13 -151 13 -185 0 -25 -9 -25 -10 -28 -139 l-3 -129 -232 196 -233 195 0 226 c0 163 -3 230 -12 239 -14 14 -176 16 -198 2 -12 -7 -16 -39 -20 -140 l-5 -130 -265 223 -265 223 -2 144 c-4 263 -23 613 -38 720 -20 138 -58 280 -96 358 -35 71 -90 132 -119 132 -11 0 -36 -16 -56 -37z" fill="#fed700"/>
+            </g>
+          </svg>
+        `;
+      } else if (isBoeing737) {
+        // Custom Boeing 737 Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <g transform="translate(0,512) scale(0.1,-0.1)">
+              <path d="M2517 5043 c-135 -290 -233 -673 -267 -1043 -5 -63 -10 -246 -10 -406 l0 -292 -64 -59 c-94 -88 -302 -243 -327 -243 -5 0 -9 29 -9 65 l0 66 -107 -3 -108 -3 -5 -128 -5 -129 -690 -339 c-379 -187 -701 -350 -714 -362 -48 -44 -71 -113 -71 -214 0 -63 4 -93 11 -93 11 0 1377 381 1433 400 26 9 33 6 65 -28 28 -29 39 -52 49 -101 16 -78 36 -77 40 2 3 53 5 57 28 57 44 0 64 17 64 55 l0 35 98 0 c53 0 140 -3 193 -6 l96 -7 6 -326 c7 -429 39 -804 89 -1046 11 -55 21 -106 22 -114 0 -8 -60 -57 -135 -110 -340 -240 -561 -405 -568 -425 -9 -23 -22 -246 -15 -246 5 0 840 208 865 216 12 3 18 -7 25 -43 l9 -48 45 0 45 0 9 48 c7 36 13 46 25 43 59 -18 864 -216 867 -214 2 2 0 59 -5 126 -6 102 -11 126 -27 141 -25 25 -484 356 -602 434 -75 50 -91 66 -87 82 63 249 104 669 112 1156 l6 326 96 7 c53 3 140 6 194 6 l97 0 0 -35 c0 -38 20 -55 64 -55 23 0 25 -4 28 -57 4 -79 24 -80 40 -2 10 49 21 72 49 101 32 34 39 37 65 28 56 -19 1422 -400 1433 -400 7 0 11 30 11 93 0 101 -23 170 -71 214 -13 12 -335 175 -714 362 l-690 339 -5 129 -5 128 -107 3 -108 3 0 -66 c0 -36 -4 -65 -9 -65 -25 0 -233 155 -327 243 l-64 59 0 292 c0 160 -5 343 -10 406 -28 299 -99 616 -197 875 -42 111 -104 245 -113 245 -4 0 -23 -35 -43 -77z" fill="#fed700"/>
+            </g>
+          </svg>
+        `;
+      } else if (isBoeing747) {
+        // Custom Boeing 747 Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)">
+              <path d="M2512 5104 c-83 -58 -152 -303 -182 -639 -6 -66 -14 -281 -17 -478 l-6 -358 -226 -199 -226 -200 -5 66 c-6 82 -20 94 -105 94 -98 0 -105 -9 -105 -138 0 -59 4 -113 9 -120 4 -7 20 -16 36 -20 27 -8 16 -18 -256 -259 l-284 -252 -3 77 c-2 42 -8 82 -14 89 -14 17 -159 18 -176 1 -8 -8 -12 -52 -12 -130 0 -96 3 -120 15 -124 9 -4 15 -19 15 -38 -1 -28 -27 -54 -285 -281 l-284 -250 0 -235 c0 -129 3 -228 6 -220 4 8 13 48 22 89 l16 74 590 335 590 335 325 104 c179 57 333 106 343 109 16 5 17 -27 17 -579 0 -450 4 -619 15 -738 16 -163 40 -314 55 -353 10 -27 16 -20 -426 -447 l-202 -194 -7 -108 c-4 -60 -5 -111 -2 -113 2 -3 168 44 368 104 200 60 365 108 367 107 2 -2 12 -42 23 -89 12 -47 29 -96 40 -108 l19 -23 19 23 c11 12 28 61 40 108 11 47 21 87 23 89 2 1 167 -47 367 -107 200 -60 366 -107 368 -104 3 2 2 53 -2 113 l-7 108 -202 194 c-442 427 -436 420 -426 447 15 39 39 190 55 353 11 119 15 288 15 738 0 552 1 584 18 579 9 -3 163 -52 342 -109 l326 -104 589 -335 590 -335 16 -74 c9 -41 18 -81 22 -89 3 -8 6 91 6 220 l0 235 -284 250 c-258 227 -284 253 -285 281 0 19 6 34 15 38 12 4 15 28 15 124 0 78 -4 122 -12 130 -17 17 -162 16 -176 -1 -6 -7 -12 -47 -14 -89 l-3 -77 -284 252 c-272 241 -283 251 -256 259 16 4 32 13 36 20 5 7 9 61 9 120 0 129 -7 138 -105 138 -85 0 -99 -12 -105 -94 l-5 -66 -226 200 -226 199 -6 358 c-4 197 -11 412 -17 478 -36 406 -123 655 -230 655 -14 0 -36 -7 -48 -16z" fill="#fed700"/>
+            </g>
+          </svg>
+        `;
+      } else if (isBoeing757) {
+        // Custom Boeing 757 Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)">
+              <path d="M2518 5102 c-61 -40 -106 -129 -139 -279 -22 -95 -23 -120 -28 -917 l-6 -820 -125 -48 c-69 -26 -141 -54 -161 -62 l-36 -15 14 52 c18 64 13 220 -8 262 -21 43 -52 55 -154 55 -102 0 -130 -11 -158 -57 -45 -77 -27 -281 29 -331 14 -12 26 -34 27 -48 2 -26 -10 -31 -692 -295 -764 -295 -743 -284 -781 -387 -21 -56 -42 -210 -29 -217 3 -3 18 18 33 45 39 72 72 96 145 103 69 7 493 91 992 196 l337 71 270 0 270 0 11 -31 c8 -22 11 -231 11 -663 0 -619 1 -634 25 -801 13 -94 31 -193 39 -219 8 -27 13 -53 10 -58 -6 -10 -130 -101 -401 -296 l-211 -152 -16 -67 c-8 -37 -14 -68 -13 -69 1 -2 158 36 349 84 191 48 349 84 352 82 2 -3 13 -52 23 -110 l19 -105 44 0 44 0 19 105 c10 58 21 107 23 110 3 2 161 -34 352 -82 191 -48 348 -86 349 -84 1 1 -5 32 -13 69 l-16 67 -211 152 c-271 195 -395 286 -401 296 -3 5 2 31 10 58 8 26 26 125 39 219 24 167 25 182 25 801 0 432 3 641 11 663 l11 31 269 0 270 0 457 -94 c251 -52 556 -113 677 -136 121 -23 230 -47 243 -53 12 -6 46 -39 74 -73 29 -34 55 -61 58 -59 12 7 -10 163 -30 217 -38 103 -17 92 -781 387 -682 264 -694 269 -692 295 1 14 13 36 27 48 56 50 74 254 29 331 -28 46 -56 57 -158 57 -102 0 -133 -12 -154 -55 -21 -42 -26 -198 -8 -262 l14 -52 -36 15 c-20 8 -92 36 -161 62 l-125 48 -6 820 c-5 797 -6 822 -28 917 -23 104 -57 191 -91 235 -25 32 -69 62 -90 62 -8 0 -27 -8 -42 -18z" fill="#fed700"/>
+            </g>
+          </svg>
+        `;
+      } else if (isBoeing767) {
+        // Custom Boeing 767 Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)">
+              <path d="M2504 5088 c-123 -108 -199 -352 -224 -720 -6 -84 -10 -331 -9 -548 l0 -395 -34 -40 c-29 -35 -365 -285 -381 -285 -4 0 -3 62 0 138 6 131 6 138 -16 165 l-22 28 -121 -3 -122 -3 -19 -38 c-17 -36 -18 -49 -7 -180 10 -123 14 -144 32 -159 17 -14 20 -27 17 -75 l-3 -58 -230 -159 c-126 -87 -477 -328 -779 -534 -456 -312 -551 -381 -562 -408 -17 -41 -19 -175 -2 -192 7 -7 21 -12 31 -12 18 0 542 194 1077 399 222 85 236 89 244 70 13 -28 32 -23 42 12 8 26 19 35 84 60 58 23 312 79 359 79 5 0 12 -11 15 -25 9 -34 33 -31 41 5 8 35 1 32 195 65 85 15 163 29 173 31 16 5 17 -22 17 -478 0 -367 4 -514 15 -613 17 -142 40 -282 54 -333 9 -31 7 -35 -37 -76 -55 -51 -327 -282 -564 -479 -132 -110 -167 -144 -172 -169 -7 -37 -8 -158 -1 -158 3 0 203 50 445 110 242 61 444 110 449 110 5 0 12 -15 16 -32 33 -168 77 -168 110 0 4 17 11 32 16 32 5 0 207 -50 449 -110 242 -61 442 -110 445 -110 7 0 6 121 -1 158 -5 25 -40 59 -172 169 -237 197 -509 428 -564 479 -44 41 -46 45 -37 76 14 51 37 191 54 333 11 99 15 246 15 613 0 456 1 483 18 478 9 -2 87 -16 172 -31 194 -33 187 -30 195 -65 8 -36 32 -39 41 -5 3 14 10 25 15 25 47 0 301 -56 359 -79 65 -25 76 -34 84 -60 10 -35 29 -40 42 -12 8 19 22 15 244 -70 535 -205 1059 -399 1077 -399 10 0 24 5 31 12 17 17 15 151 -2 192 -11 27 -106 96 -562 408 -302 206 -652 447 -779 534 l-230 159 -3 58 c-3 48 0 61 17 75 18 15 22 37 32 154 12 148 5 199 -31 218 -10 6 -68 10 -129 10 -108 0 -110 0 -131 -27 -21 -27 -22 -34 -16 -165 4 -76 4 -138 1 -138 -17 0 -352 250 -382 285 l-34 40 0 395 c2 575 -19 812 -90 1026 -47 142 -143 274 -199 274 -11 0 -36 -15 -56 -32z" fill="#fed700"/>
+            </g>
+          </svg>
+        `;
+      } else if (isBoeing777) {
+        // Custom Boeing 777 Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)">
+              <path d="M2498 5101 c-61 -48 -124 -222 -158 -436 -33 -206 -41 -346 -47 -816 l-6 -456 -150 -104 c-83 -57 -155 -105 -159 -107 -4 -2 -8 43 -8 101 0 122 -13 149 -83 168 -51 14 -155 5 -197 -16 l-30 -16 0 -192 c0 -161 3 -196 16 -216 14 -19 14 -25 3 -36 -8 -7 -348 -243 -756 -525 -843 -581 -784 -531 -791 -683 -6 -108 1 -114 86 -75 100 44 522 218 1008 414 l431 173 311 7 311 7 4 -589 4 -589 31 -175 32 -174 -20 -21 c-11 -11 -161 -135 -333 -276 l-312 -255 -3 -98 c-2 -88 -1 -98 14 -92 89 34 758 256 761 252 3 -3 19 -62 37 -132 21 -83 38 -131 49 -138 34 -21 50 5 83 138 18 70 34 129 37 132 3 4 672 -218 761 -252 15 -6 16 4 14 92 l-3 98 -312 255 c-172 141 -322 265 -333 276 l-20 21 32 174 31 175 4 589 4 589 311 -7 311 -7 431 -173 c486 -196 908 -370 1008 -414 85 -39 92 -33 86 75 -7 152 52 102 -791 683 -408 282 -746 516 -751 521 -6 5 -2 24 8 46 14 32 16 66 14 217 -3 178 -3 179 -28 198 -33 24 -140 34 -198 19 -68 -19 -76 -35 -82 -166 l-5 -114 -161 111 -161 112 -6 455 c-3 251 -11 510 -17 576 -24 268 -72 485 -132 598 -39 72 -69 97 -118 97 -22 0 -48 -8 -62 -19z" fill="#fed700"/>
+            </g>
+          </svg>
+        `;
+      } else if (isBoeing787) {
+        // Custom Boeing 787 Dreamliner Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)">
+              <path d="M2496 5099 c-57 -45 -109 -172 -145 -351 -47 -237 -61 -444 -61 -913 l-1 -370 -187 -149 -187 -148 -5 151 c-7 201 -2 196 -181 196 l-131 0 -24 -28 c-24 -28 -24 -31 -24 -236 0 -196 1 -210 21 -235 11 -14 28 -26 37 -26 10 0 22 -8 29 -19 10 -16 -52 -69 -633 -536 -635 -511 -750 -612 -819 -720 -62 -96 -104 -242 -76 -260 7 -4 37 17 73 50 169 156 230 188 1146 589 l403 176 274 0 274 0 3 -487 c4 -439 6 -504 27 -653 12 -91 31 -204 41 -253 l18 -88 -308 -294 -307 -295 -7 -76 c-9 -107 -8 -124 7 -124 6 0 147 59 311 130 224 97 310 130 341 130 l41 0 12 -58 c6 -31 22 -78 34 -102 22 -43 25 -45 68 -45 43 0 46 2 68 45 12 24 28 71 34 102 l12 58 41 0 c31 0 117 -33 341 -130 164 -71 305 -130 313 -130 11 0 13 15 7 77 -3 42 -6 86 -6 98 0 16 -85 104 -309 318 l-309 296 18 88 c10 49 29 162 41 253 21 149 23 214 27 652 l3 488 274 0 274 0 403 -176 c916 -401 977 -433 1146 -589 36 -33 66 -54 73 -50 28 18 -14 164 -76 260 -69 108 -184 209 -819 720 -581 467 -643 520 -633 536 7 11 19 19 29 19 9 0 26 12 37 26 20 25 21 39 21 235 0 205 0 208 -24 236 l-24 28 -131 0 c-179 0 -174 5 -181 -197 l-5 -151 -185 149 -185 149 -6 455 c-7 495 -15 594 -60 828 -49 247 -119 372 -209 372 -23 0 -48 -8 -64 -21z" fill="#fed700"/>
+            </g>
+          </svg>
+        `;
+      } else if (isEmbraerEJet) {
+        // Custom Embraer E-Jet Family Silhouette (user-provided exact path)
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)">
+              <path d="M2518 5102 c-61 -40 -106 -129 -139 -279 -22 -95 -23 -120 -28 -917 l-6 -820 -125 -48 c-69 -26 -141 -54 -161 -62 l-36 -15 14 52 c18 64 13 220 -8 262 -21 43 -52 55 -154 55 -102 0 -130 -11 -158 -57 -45 -77 -27 -281 29 -331 14 -12 26 -34 27 -48 2 -26 -10 -31 -692 -295 -764 -295 -743 -284 -781 -387 -21 -56 -42 -210 -29 -217 3 -3 18 18 33 45 39 72 72 96 145 103 69 7 493 91 992 196 l337 71 270 0 270 0 11 -31 c8 -22 11 -231 11 -663 0 -619 1 -634 25 -801 13 -94 31 -193 39 -219 8 -27 13 -53 10 -58 -6 -10 -130 -101 -401 -296 l-211 -152 -16 -67 c-8 -37 -14 -68 -13 -69 1 -2 158 36 349 84 191 48 349 84 352 82 2 -3 13 -52 23 -110 l19 -105 44 0 44 0 19 105 c10 58 21 107 23 110 3 2 161 -34 352 -82 191 -48 348 -86 349 -84 1 1 -5 32 -13 69 l-16 67 -211 152 c-271 195 -395 286 -401 296 -3 5 2 31 10 58 8 26 26 125 39 219 24 167 25 182 25 801 0 432 3 641 11 663 l11 31 269 0 270 0 457 -94 c251 -52 556 -113 677 -136 121 -23 230 -47 243 -53 12 -6 46 -39 74 -73 29 -34 55 -61 58 -59 12 7 -10 163 -30 217 -38 103 -17 92 -781 387 -682 264 -694 269 -692 295 1 14 13 36 27 48 56 50 74 254 29 331 -28 46 -56 57 -158 57 -102 0 -133 -12 -154 -55 -21 -42 -26 -198 -8 -262 l14 -52 -36 15 c-20 8 -92 36 -161 62 l-125 48 -6 820 c-5 797 -6 822 -28 917 -23 104 -57 191 -91 235 -25 32 -69 62 -90 62 -8 0 -27 -8 -42 -18z" fill="#fed700"/>
+            </g>
+          </svg>
+        `;
+      } else {
+        // Default Icon
+        svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="-23.0965 -12.669 72.53 48.12" width="36" height="36" style="transform: rotate(${rotation}deg); transform-origin: center;">
+            <path d="M 16.793 12.613 H 32.585 l 15.491 -1.694 C 49.762 9.725 49.856 4.163 48.479 3.318 L 32.109 1.648 l -10.228 0 l -4.852 -1.868 L 16.139 -10.215 L 20.714 -10.552 C 20.971 -10.809 20.886 -11.009 20.714 -11.151 L 13.982 -11.067 L 13.276 -12.669 L 12.519 -11.032 L 5.731 -11.214 C 5.524 -11.108 5.56 -10.745 5.748 -10.598 L 10.257 -10.265 l -0.809 9.966 l -4.372 1.874 L -5.835 1.648 L -21.841 3.135 C -23.646 3.254 -23.46 10.775 -21.571 10.893 L -5.854 12.528 L 9.609 12.613 L 11.801 29.78 L 0.57 29.847 C -1.858 30.337 -0.087 35.092 0.879 35.454 l 24.282 0 C 27.535 34.283 27.704 29.561 25.157 29.746 L 14.652 29.78 Z" fill="black" stroke="black" stroke-width="0.8"/>
             <path d="M 16.793 12.613 H 32.585 l 15.491 -1.694 C 49.762 9.725 49.856 4.163 48.479 3.318 L 32.109 1.648 l -10.228 0 l -4.852 -1.868 L 16.139 -10.215 L 20.714 -10.552 C 20.971 -10.809 20.886 -11.009 20.714 -11.151 L 13.982 -11.067 L 13.276 -12.669 L 12.519 -11.032 L 5.731 -11.214 C 5.524 -11.108 5.56 -10.745 5.748 -10.598 L 10.257 -10.265 l -0.809 9.966 l -4.372 1.874 L -5.835 1.648 L -21.841 3.135 C -23.646 3.254 -23.46 10.775 -21.571 10.893 L -5.854 12.528 L 9.609 12.613 L 11.801 29.78 L 0.57 29.847 C -1.858 30.337 -0.087 35.092 0.879 35.454 l 24.282 0 C 27.535 34.283 27.704 29.561 25.157 29.746 L 14.652 29.78 Z" fill="#fed700"/>
           </svg>
-        `,
+        `;
+      }
+
+      return L.divIcon({
+        className: 'aircraft-icon',
+        html: svgHtml,
         iconSize: [32, 32],
         iconAnchor: [16, 16],
         popupAnchor: [0, -16]
@@ -1187,9 +1368,17 @@
     }
 
     function formatUTCTime(utcTimestamp) {
-      const [datePart, timePart] = utcTimestamp.replace('Z', '').split('T');
-      const [year, month, day] = datePart.split('-');
-      const [hours, minutes, seconds] = timePart.split(':');
+      if (!utcTimestamp) return 'N/A';
+      const date = new Date(utcTimestamp);
+      if (isNaN(date.getTime())) return utcTimestamp;
+
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const year = date.getUTCFullYear();
+      const hours = String(date.getUTCHours()).padStart(2, '0');
+      const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+      const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+
       return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
     }
 
@@ -1302,6 +1491,42 @@
       layerModal.style.display = 'none';
     };
 
+    // Error Modal & Overlay
+    const errorOverlay = document.createElement('div');
+    errorOverlay.id = 'errorOverlay';
+    document.body.appendChild(errorOverlay);
+
+    const errorModal = document.createElement('div');
+    errorModal.id = 'errorModal';
+    errorModal.innerHTML = `
+      <h3>File Format Error</h3>
+      <p>One or more files format not supported.<br>Please use files from FlightRadar24 output.</p>
+      <button id="errorOkBtn">OK</button>
+    `;
+    document.body.appendChild(errorModal);
+
+    function closeErrorPopup() {
+      document.getElementById('errorModal').style.display = 'none';
+      document.getElementById('errorOverlay').style.display = 'none';
+      // Reset input so same file can be selected again if needed
+      if (multiFileInput) multiFileInput.value = '';
+    }
+
+    document.getElementById('errorOkBtn').addEventListener('click', closeErrorPopup);
+    // Also close on overlay click?
+    // errorOverlay.addEventListener('click', closeErrorPopup);
+
+    function showErrorPopup() {
+      document.getElementById('errorOverlay').style.display = 'block';
+      document.getElementById('errorModal').style.display = 'block';
+      // Also reset input immediately so if they cancel/close, it's ready
+      if (multiFileInput) multiFileInput.value = '';
+
+      // Reset main button text
+      const btn = document.getElementById('multi_file_button');
+      if (btn) btn.textContent = 'Select Flight file(s)';
+    }
+
     const multiFileInput = document.getElementById('multiCsvFiles');
     const progressBar = document.getElementById('progressBar');
     const mainTitle = document.getElementById('multi_file_button');
@@ -1397,7 +1622,7 @@
       const point = flightPathPoints[index];
 
       aircraftMarker.setLatLng([point.lat, point.lng]);
-      aircraftMarker.setIcon(createAircraftIcon(point.direction));
+      aircraftMarker.setIcon(createAircraftIcon(point.direction, point.model));
 
       const bounds = map.getBounds();
       if (!bounds.contains([point.lat, point.lng])) {
@@ -1405,9 +1630,16 @@
       }
     }
 
+    let activePointIndex = -1;
+
     function updateDisplay(index) {
       const point = flightPathPoints[index];
       if (!point) return;
+
+      activePointIndex = index;
+      if (chartInstance) {
+        chartInstance.draw();
+      }
 
       heureEl.textContent = point.time;
       document.getElementById("UTCTime").textContent = point.utcTime;
@@ -1417,18 +1649,22 @@
     }
 
     function handleSingleFile() {
-      const file = fileInput.files[0];
+      // This function might not be used if the input assumes multi-file, 
+      // but if there were a single file input elsewhere, we'd update it too.
+      // The current UI uses #multiCsvFiles for everything.
+      // But preserving this just in case logic is shared.
+      const file = multiFileInput.files[0];
       if (file) {
-        // Clear previous flights
         clearAllFlights();
         flightSelector.style.display = 'none';
-
-        // Hide toggle button
         const flightToggleBtn = document.getElementById('flightSelectorToggle');
         if (flightToggleBtn) flightToggleBtn.style.display = 'none';
 
-        // Process the single file
-        processCSVFile(file, 0, true);
+        if (file.name.toLowerCase().endsWith('.kml')) {
+          processKMLFile(file, 0, true);
+        } else {
+          processCSVFile(file, 0, true);
+        }
       }
     }
 
@@ -1437,23 +1673,36 @@
       const flightToggleBtn = document.getElementById('flightSelectorToggle');
 
       if (files.length > 0) {
-        // Clear previous flights
         clearAllFlights();
         flightSelector.innerHTML = '';
 
+        const isSingleFile = files.length === 1;
+
         for (let i = 0; i < files.length; i++) {
-          processCSVFile(files[i], i, false);
+          const file = files[i];
+          if (file.name.toLowerCase().endsWith('.kml')) {
+            processKMLFile(file, i, isSingleFile);
+          } else {
+            processCSVFile(file, i, isSingleFile);
+          }
         }
 
-        // Only show toggle button if more than 1 file
         if (flightToggleBtn) {
-          flightToggleBtn.style.display = files.length > 1 ? 'flex' : 'none';
+          flightToggleBtn.style.display = !isSingleFile ? 'flex' : 'none';
+        }
+        flightSelectorContainer.style.display = !isSingleFile ? 'flex' : 'none';
+
+        // Ensure menu starts collapsed (hidden) when loading new files
+        if (!isSingleFile) {
+          flightSelectorContainer.classList.add('collapsed');
         }
 
-        // Show container (if needed for context, but button controls menu visibility)
-        flightSelectorContainer.style.display = 'flex';
+
+
       } else {
         if (flightToggleBtn) flightToggleBtn.style.display = 'none';
+        const toggleGraph = document.getElementById('toggleGraphBtn');
+        if (toggleGraph) toggleGraph.style.display = 'none';
       }
     }
 
@@ -1467,7 +1716,8 @@
       });
 
       allFlights = [];
-      currentFlightIndex = 0;
+      flightPathPoints = []; // IMPORTANT: Clear the current points so playback stops working on old data
+      currentFlightIndex = -1;
       currentFlightData = null;
 
       // Clear the aircraft marker
@@ -1478,6 +1728,185 @@
 
       const toggleBtn = document.getElementById('toggleGraphBtn');
       if (toggleBtn) toggleBtn.style.display = 'none';
+
+      // Destroy chart
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+
+      // Reset UI state
+      const chartContainer = document.getElementById('chart-container');
+      const infoBox = document.querySelector('.infosbox');
+      if (chartContainer) chartContainer.classList.add('collapsed');
+      if (infoBox) infoBox.classList.remove('expanded');
+
+      // Reset Playback & Metadata
+      if (typeof isPlaying !== 'undefined' && isPlaying) pauseFlight();
+      if (typeof updatePlayPauseButton === 'function') updatePlayPauseButton();
+
+      if (progressBar) {
+        progressBar.value = 0;
+        progressBar.disabled = true;
+      }
+      if (speedControl) speedControl.disabled = true;
+
+      if (heureEl) heureEl.textContent = '--/--/---- --:--:--'; // Or 00... user didn't specify, -- is cleaner
+      const utcEl = document.getElementById("UTCTime");
+      if (utcEl) utcEl.textContent = '--/--/---- --:--:--';
+
+      if (altitudeEl) altitudeEl.textContent = '-----';
+      if (vitesseEl) vitesseEl.textContent = '----';
+      if (directionEl) directionEl.textContent = '---';
+      if (flightTimeEl) flightTimeEl.textContent = '--:--:--';
+    }
+
+    function processKMLFile(file, index, isSingleFile) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
+        const flightPoints = [];
+        const flightSegments = [];
+
+        // Extract Flight Name (try Document name, or Filename)
+        let flightName = file.name.replace('.kml', '');
+        const docName = xmlDoc.querySelector('Document > name');
+        if (docName && docName.textContent) {
+          flightName = docName.textContent;
+        }
+
+        // Extract Aircraft Model from Document description (applies to entire flight)
+        let aircraftModel = null;
+        const docDescription = xmlDoc.querySelector('Document > description');
+        if (docDescription) {
+          const docHtmlContent = docDescription.textContent;
+          // Look for "Aircraft<span...>(MODEL)</span>"
+          const modelMatch = docHtmlContent.match(/Aircraft.*?\((\w+)\)/);
+          if (modelMatch) {
+            aircraftModel = modelMatch[1];
+          }
+        }
+
+        // Find all Placemarks that look like track points (have TimeStamp)
+        const placemarks = xmlDoc.querySelectorAll('Placemark');
+
+        placemarks.forEach(pm => {
+          const timestampNode = pm.querySelector('TimeStamp > when');
+          const pointNode = pm.querySelector('Point > coordinates');
+          const descriptionNode = pm.querySelector('description');
+
+          if (timestampNode && pointNode) {
+            const coords = pointNode.textContent.trim().split(',');
+            const lng = parseFloat(coords[0]);
+            const lat = parseFloat(coords[1]);
+            const alt = parseFloat(coords[2]) || 0; // standard KML alt is meters usually, but let's check
+            // Wait, the KML example description says "Altitude: 0 ft". 
+            // The <coordinates> usually have altitude in meters in standard KML, BUT
+            // let's rely on the Description HTML if available for more precise/data-logger specific values (Speed/Heading).
+            // Actually, let's parse the description for consistent data matching the CSV columns.
+
+            let altitudeFeet = 0;
+            let speedKt = 0;
+            let headingDeg = 0;
+
+            if (descriptionNode) {
+              const htmlContent = descriptionNode.textContent;
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(htmlContent, 'text/html');
+
+              // Helper to extracting numeric value from sibling span
+              const extractValue = (label) => {
+                const bTags = htmlDoc.getElementsByTagName('b');
+                for (let i = 0; i < bTags.length; i++) {
+                  if (bTags[i].textContent.includes(label)) {
+                    let valueContainer = null;
+                    // Check 1: <description>...<span><b>Label:</b></span> <span>Value</span>...</description>
+                    // bTag -> parent(span) -> nextElementSibling(span)
+                    if (bTags[i].parentElement && bTags[i].parentElement.tagName.toLowerCase() === 'span') {
+                      valueContainer = bTags[i].parentElement.nextElementSibling;
+                    }
+                    // Check 2: Direct sibling? <b>Label:</b> <span>Value</span>
+                    if (!valueContainer) {
+                      valueContainer = bTags[i].nextElementSibling;
+                    }
+
+                    if (valueContainer) {
+                      let text = valueContainer.textContent.trim();
+
+                      // Handle range "24,925 ft - 23,325 ft" -> take the right side
+                      if (text.includes('-')) {
+                        const parts = text.split('-');
+                        text = parts[parts.length - 1].trim();
+                      }
+
+                      // Remove commas "23,325" -> "23325"
+                      text = text.replace(/,/g, '');
+
+                      const match = text.match(/(\d+)/);
+                      if (match) return parseInt(match[1]);
+                    }
+                  }
+                }
+
+                // Fallback: Regex on full text
+                const cleanText = htmlDoc.body.textContent || "";
+                const backupRegex = new RegExp(label + "\\s*[:]?\\s*(\\d+)");
+                const match = cleanText.match(backupRegex);
+                if (match) return parseInt(match[1]);
+
+                return null;
+              };
+
+              const altConf = extractValue('Altitude');
+              if (altConf !== null) altitudeFeet = altConf;
+
+              const spdConf = extractValue('Speed');
+              if (spdConf !== null) speedKt = spdConf;
+
+              const hdgConf = extractValue('Heading');
+              if (hdgConf !== null) headingDeg = hdgConf;
+
+            } else {
+              // Fallback if no description (standard KML)
+              // If standard KML, coords[2] is meters. 1m = 3.28084ft
+              altitudeFeet = (parseFloat(coords[2]) || 0) * 3.28084;
+            }
+
+            // Check for Style Heading fallback
+            if (headingDeg === 0) {
+              const iconHeading = pm.querySelector('Style > IconStyle > heading');
+              if (iconHeading) headingDeg = parseInt(iconHeading.textContent);
+            }
+
+            if (!isNaN(lat) && !isNaN(lng)) {
+              const rawTime = timestampNode.textContent;
+              // Calculate unix timestamp for graph
+              const unixTime = new Date(rawTime).getTime() / 1000;
+
+              flightPoints.push({
+                lat: lat,
+                lng: lng,
+                altitudeFeet: altitudeFeet,
+                speed: speedKt,
+                direction: headingDeg,
+                rawUnix: unixTime,
+                time: formatTime(rawTime), // formatTime handles 'Invalid Date' checks internally
+                utcTime: formatUTCTime(rawTime), // reusing existing if format matches
+                model: aircraftModel // Store aircraft model
+              });
+            }
+          }
+        });
+
+        if (flightPoints.length === 0) {
+          showErrorPopup();
+          return;
+        }
+
+        finishProcessingFlight(flightPoints, flightName, index, isSingleFile, { data: [] }); // KML has no raw data equivalent to CSV
+      };
+      reader.readAsText(file);
     }
 
     function processCSVFile(file, index, isSingleFile) {
@@ -1486,10 +1915,8 @@
         complete: function (results) {
           const data = results.data;
           const flightPoints = [];
-          const flightSegments = [];
+          // const flightSegments = []; // Unused variable
           let flightName = file.name.replace('.csv', '');
-          const toggleBtn = document.getElementById('toggleGraphBtn');
-          toggleBtn.style.display = 'flex'; // Use flex to center content
 
           if (results.meta.fields && results.meta.fields.length >= 3) {
             const c2Value = results.data[0] ? results.data[0][results.meta.fields[2]] : '';
@@ -1516,29 +1943,43 @@
             }
           });
 
+
+          if (flightPoints.length === 0) {
+            showErrorPopup();
+            return;
+          }
+
           if (flightPoints.length < 2) return;
 
-          // Create altitude-based segments
-          const altitudeSegments = [];
-          for (let i = 0; i < flightPoints.length - 1; i++) {
-            const p1 = flightPoints[i];
-            const p2 = flightPoints[i + 1];
-            const avgAltFeet = (p1.altitudeFeet + p2.altitudeFeet) / 2;
-            const color = getColorFromAltitude(avgAltFeet);
+          finishProcessingFlight(flightPoints, flightName, index, isSingleFile, results);
+        }
+      });
+    }
 
-            const segment = L.polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], {
-              color: color,
-              weight: getTrackWeight()
-            }).addTo(map);
+    function finishProcessingFlight(flightPoints, flightName, index, isSingleFile, originalDataWrapper) {
+      // Shared Logic between CSV and KML
 
-            altitudeSegments.push(segment);
+      // Create altitude-based segments
+      const altitudeSegments = [];
+      for (let i = 0; i < flightPoints.length - 1; i++) {
+        const p1 = flightPoints[i];
+        const p2 = flightPoints[i + 1];
+        const avgAltFeet = (p1.altitudeFeet + p2.altitudeFeet) / 2;
+        const color = getColorFromAltitude(avgAltFeet);
 
-            segment.on('mousemove', (e) => {
-              if (currentTooltip) {
-                map.removeLayer(currentTooltip);
-              }
+        const segment = L.polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], {
+          color: color,
+          weight: getTrackWeight()
+        }).addTo(map);
 
-              const tooltipContent = `
+        altitudeSegments.push(segment);
+
+        segment.on('mousemove', (e) => {
+          if (currentTooltip) {
+            map.removeLayer(currentTooltip);
+          }
+
+          const tooltipContent = `
                 <div class="tooltip-content">
                   <strong>LOCAL TIME: </strong> ${p1.time}<br/>
                   <strong>UTC TIME: </strong> ${p1.utcTime}<br/>
@@ -1550,92 +1991,123 @@
                 </div>
               `;
 
-              currentTooltip = L.tooltip({
-                permanent: false,
-                direction: 'top',
-                className: 'tooltip-content'
-              })
-                .setLatLng(e.latlng)
-                .setContent(tooltipContent)
-                .addTo(map);
-            });
-
-            segment.on('mouseout', () => {
-              if (currentTooltip) {
-                map.removeLayer(currentTooltip);
-                currentTooltip = null;
-              }
-            });
-          }
-
-          // Create start and end markers (visible by default)
-          const start = flightPoints[0];
-          const end = flightPoints[flightPoints.length - 1];
-
-          const startMarker = L.marker([start.lat, start.lng]).addTo(map);
-          const endMarker = L.marker([end.lat, end.lng]).addTo(map);
-
-          // Bind tooltips that only show on hover
-          startMarker.bindTooltip(`${flightName} - Takeoff`, {
+          currentTooltip = L.tooltip({
             permanent: false,
             direction: 'top',
             className: 'tooltip-content'
-          });
+          })
+            .setLatLng(e.latlng)
+            .setContent(tooltipContent)
+            .addTo(map);
+        });
 
-          endMarker.bindTooltip(`${flightName} - Landing`, {
-            permanent: false,
-            direction: 'top',
-            className: 'tooltip-content'
-          });
-
-          // Show tooltip on mouseover
-          startMarker.on('mouseover', function () {
-            this.openTooltip();
-          });
-
-          // Hide tooltip on mouseout
-          startMarker.on('mouseout', function () {
-            this.closeTooltip();
-          });
-
-          // Show tooltip on mouseover
-          endMarker.on('mouseover', function () {
-            this.openTooltip();
-          });
-
-          // Hide tooltip on mouseout
-          endMarker.on('mouseout', function () {
-            this.closeTooltip();
-          });
-
-          // Store flight data
-          const flightData = {
-            name: flightName,
-            points: flightPoints,
-            path: null,
-            startMarker: startMarker,
-            endMarker: endMarker,
-            altitudeSegments: altitudeSegments,
-            data: data
-          };
-
-          allFlights.push(flightData);
-
-          // Add to flight selector if multiple files
-          if (!isSingleFile) {
-            const flightItem = document.createElement('div');
-            flightItem.className = 'flight-item';
-            flightItem.textContent = flightName;
-            flightItem.onclick = () => selectFlight(index);
-            flightSelector.appendChild(flightItem);
+        segment.on('mouseout', () => {
+          if (currentTooltip) {
+            map.removeLayer(currentTooltip);
+            currentTooltip = null;
           }
+        });
+      }
 
-          // If this is the first flight (or single file), select it by default
-          if (index === 0 || isSingleFile) {
-            selectFlight(index, isSingleFile);
-          }
-        }
+      // Create start and end markers (visible by default)
+      const start = flightPoints[0];
+      const end = flightPoints[flightPoints.length - 1];
+
+      const startMarker = L.marker([start.lat, start.lng]).addTo(map);
+      const endMarker = L.marker([end.lat, end.lng]).addTo(map);
+
+      // Bind tooltips that only show on hover
+      startMarker.bindTooltip(`${flightName} - Takeoff`, {
+        permanent: false,
+        direction: 'top',
+        className: 'tooltip-content'
       });
+
+      endMarker.bindTooltip(`${flightName} - Landing`, {
+        permanent: false,
+        direction: 'top',
+        className: 'tooltip-content'
+      });
+
+      // Show tooltip on mouseover
+      startMarker.on('mouseover', function () {
+        this.openTooltip();
+      });
+
+      // Hide tooltip on mouseout
+      startMarker.on('mouseout', function () {
+        this.closeTooltip();
+      });
+
+      // Show tooltip on mouseover
+      endMarker.on('mouseover', function () {
+        this.openTooltip();
+      });
+
+      // Hide tooltip on mouseout
+      endMarker.on('mouseout', function () {
+        this.closeTooltip();
+      });
+
+      // Store flight data
+      // For KML we don't have the original 'data' array structure from PapaParse, 
+      // allow originalDataWrapper to be just the points if needed, or normalize it? 
+      // The updateChart function expects 'data' to have .Timestamp, .Altitude, .Speed properties.
+      // We need to normalize data for the chart if it came from KML.
+
+      let chartDataSource = originalDataWrapper.data;
+
+      // If the source data doesn't look like CSV rows (no Timestamp property), we might need to map it back 
+      // or update updateChart to handle the 'flightPoints' structure which is cleaner.
+      // Ideally, we should refactor updateChart to use flightPoints!
+      // But to minimize risk, let's just make sure KML data is mapped to mimic the CSV row structure for the chart.
+      if ((!chartDataSource.length || !chartDataSource[0].Timestamp) && flightPoints.length > 0) {
+        // It's probably our KML points. Let's remap them to the expected format for updateChart
+        chartDataSource = flightPoints.map(p => ({
+          Timestamp: p.rawUnix, // Use the raw unix timestamp we stored
+          Altitude: p.altitudeFeet,
+          Speed: p.speed
+        }));
+      }
+
+      const flightData = {
+        name: flightName,
+        points: flightPoints,
+        path: null,
+        startMarker: startMarker,
+        endMarker: endMarker,
+        altitudeSegments: altitudeSegments,
+        data: chartDataSource
+      };
+
+      allFlights[index] = flightData;
+
+      // Add to flight selector if multiple files
+      if (!isSingleFile) {
+        flightSelector.innerHTML = '';
+        allFlights.forEach((flight, idx) => {
+          const flightItem = document.createElement('div');
+          flightItem.className = 'flight-item';
+          flightItem.textContent = flight.name;
+          flightItem.dataset.index = idx; // Store index for reliable selection
+          flightItem.onclick = () => selectFlight(idx);
+
+          // Restore active state if needed
+          if (idx === currentFlightIndex) {
+            flightItem.classList.add('active');
+          }
+
+          flightSelector.appendChild(flightItem);
+        });
+      }
+
+      // If this is the first SUCCESSFUL flight (or single file), select it by default
+      if (currentFlightIndex === -1 || isSingleFile) {
+        selectFlight(index, isSingleFile);
+      }
+
+      const toggleGraph = document.getElementById('toggleGraphBtn');
+      if (toggleGraph) toggleGraph.style.display = 'flex';
     }
 
     function selectFlight(index, isSingleFile = false) {
@@ -1647,8 +2119,9 @@
 
       // Update flight selector UI
       const flightItems = document.querySelectorAll('.flight-item');
-      flightItems.forEach((item, i) => {
-        if (i === index) {
+      flightItems.forEach((item) => {
+        // Use loose equality for dataset string vs integer index
+        if (item.dataset.index == index) {
           item.classList.add('active');
         } else {
           item.classList.remove('active');
@@ -1815,6 +2288,30 @@
         chartInstance.destroy();
       }
 
+      const scrubberLine = {
+        id: 'scrubberLine',
+        afterDatasetsDraw(chart, args, options) {
+          if (activePointIndex === -1) return;
+
+          const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+          const meta = chart.getDatasetMeta(0);
+
+          // Ensure we have data at this index
+          if (!meta.data[activePointIndex]) return;
+
+          const xPos = meta.data[activePointIndex].x;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.moveTo(xPos, top);
+          ctx.lineTo(xPos, bottom);
+          ctx.stroke();
+          ctx.restore();
+        }
+      };
+
       chartInstance = new Chart(ctx, {
         type: 'line',
         data: {
@@ -1843,7 +2340,11 @@
             }
           ]
         },
+        plugins: [scrubberLine],
         options: {
+          animation: {
+            duration: 0 // Disable animation for responsive scrubbing
+          },
           responsive: true,
           maintainAspectRatio: false,
           interaction: {
@@ -2143,3 +2644,4 @@
 </body>
 
 </html>
+
